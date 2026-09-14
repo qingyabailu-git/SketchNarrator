@@ -307,7 +307,12 @@ setTimeout(() => {
             panel_source = panel_source.replace(
                 "</body>",
                 """<script>
-setTimeout(() => {
+function probeReadyTimeline(attempt = 0) {
+  const timeLabel = document.getElementById('timeLabel').textContent;
+  if ((!App.mediaSessionReady || !timeLabel.includes('/ 1.00s')) && attempt < 50) {
+    setTimeout(() => probeReadyTimeline(attempt + 1), 100);
+    return;
+  }
   document.querySelector('[data-tab="tab-timeline"]').click();
   const presenterMode = document.getElementById('ren_hand_mode');
   presenterMode.value = 'presenter';
@@ -316,7 +321,8 @@ setTimeout(() => {
   document.body.dataset.timelineMax = document.getElementById('timelineSlider').max;
   document.body.dataset.timelineLabel = document.getElementById('timeLabel').textContent;
   document.body.dataset.timelineSecurityTest = 'clicked';
-}, 1500);
+}
+probeReadyTimeline();
 </script>
 </body>""",
             )

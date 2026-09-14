@@ -107,6 +107,10 @@ def first_project_file(project_root: Path, candidates: list[str | None]) -> Path
 
 
 def build_bootstrap(project_root: Path) -> dict[str, Any]:
+    # Use one canonical spelling throughout the response.  Temporary folders
+    # may be exposed through aliases such as RUNNER~1 on Windows or /var on
+    # macOS, and mixing those spellings breaks otherwise valid relative paths.
+    project_root = Path(project_root).expanduser().resolve()
     project = read_json(project_root / "project.json", None)
     if not isinstance(project, dict):
         raise ValueError(f"项目根目录缺少有效 project.json：{project_root}")

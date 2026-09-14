@@ -511,8 +511,8 @@
     },
     {
       "path": "scripts/panel_server.py",
-      "sha256": "6987cd39aa7b3d4f446b965bf68d9a6646e6b8ce8236c69001f08a91b186f3e0",
-      "bytes": 22679
+      "sha256": "abce06f3557562a18462b781c500189372832d44641104d2ed2743c19c80960b",
+      "bytes": 22972
     },
     {
       "path": "scripts/project_lock.py",
@@ -596,8 +596,8 @@
     },
     {
       "path": "scripts/workflow.py",
-      "sha256": "a348f1a577670d852775225cadb47303f873c6615e53e882c1548ef9ddca012d",
-      "bytes": 230302
+      "sha256": "ef68d705c39e43e5b310e98b236461b45f4424e7fff687e636ec6e36bf802207",
+      "bytes": 230644
     },
     {
       "path": "tests/fixtures/voice-sample.txt",
@@ -661,8 +661,8 @@
     },
     {
       "path": "tests/test_panel_dom_security.py",
-      "sha256": "1e75972f22ad491af477215bc9015fe66372abe67554a4587b79c91173895d74",
-      "bytes": 18615
+      "sha256": "ff16ca6ef0584bc35cc7c3355a73309c09dd525dae4e975ba633d0fb449378ff",
+      "bytes": 18883
     },
     {
       "path": "tests/test_panel_server.py",
@@ -681,8 +681,8 @@
     },
     {
       "path": "tests/test_release_manifest.py",
-      "sha256": "fc21146b01d20c0c011fab7ef9bbdd9cf3389d29a2ab4d19f1ff316b26446e57",
-      "bytes": 11490
+      "sha256": "90cd5f57acc395cf3195d21d7787dffcc29bb79d16cdd43d3220f39c5a5ec3bc",
+      "bytes": 11520
     },
     {
       "path": "tests/test_render_annotation_preview.py",

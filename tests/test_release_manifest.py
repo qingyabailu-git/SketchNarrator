@@ -166,7 +166,7 @@ class ReleaseManifestTests(unittest.TestCase):
             files, problems = release_manifest.scan_release_tree(root)
 
             self.assertEqual(problems, [])
-            paths = {_path.relative_to(root).as_posix() for _path in files}
+            paths = {_path.relative_to(root.resolve()).as_posix() for _path in files}
             self.assertFalse(any(".venv" in path or "__pycache__" in path for path in paths))
 
     def test_whole_tree_check_reports_local_runtime_roots_without_changing_manifest_scan(self) -> None:
@@ -230,7 +230,7 @@ class ReleaseManifestTests(unittest.TestCase):
             with mock.patch.object(
                 release_manifest,
                 "_is_reparse",
-                side_effect=lambda path: path == manifest or original(path),
+                side_effect=lambda path: path.name == "release-manifest.json" or original(path),
             ):
                 _, problems = release_manifest.scan_release_tree(root)
 

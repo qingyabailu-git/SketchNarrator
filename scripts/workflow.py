@@ -4102,6 +4102,11 @@ def confirmation_bundle(root: Path) -> dict[str, Any]:
 @serialized_project()
 def apply_panel(root: Path, changes_path: Path, dry_run: bool = False) -> dict[str, Any]:
     """Atomically validate, backup, and apply a panel-change-set.json to the project."""
+    # Canonicalize once before combining or comparing paths.  Windows may expose
+    # the same temporary directory through an 8.3 alias, while macOS maps /var
+    # to /private/var; comparing one spelling with a resolved child would reject
+    # a legitimate project file as outside the project.
+    root = Path(root).expanduser().resolve()
     changes_file = Path(changes_path).expanduser().resolve()
     if not changes_file.is_file():
         raise WorkflowError(f"变更集文件不存在：{changes_path}")
