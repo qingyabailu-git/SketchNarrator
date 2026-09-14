@@ -1,0 +1,4 @@
+interface:
+  display_name: "SketchNarrator"
+  short_description: "用十种可选风格制作带真实配音时间、笔迹动画和成片 QA 的中文讲解视频"
+  default_prompt: "使用 $sketch-narrator 把这个主题制作成中文手绘讲解视频，依次确认口播与风格、配音与分镜、整板图与绘制顺序，并完成最终成片 QA。"

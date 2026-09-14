@@ -1,0 +1,38 @@
+# Python and local environments
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.uv-cache/
+g2pW/
+build/
+dist/
+*.egg-info/
+
+# Local settings and credentials
+.env
+.env.*
+!.env.example
+.local/
+
+# Generated projects and media
+projects/
+outputs/
+backups/
+regressions/
+work/
+source/extracted/
+deliverables/
+*.mp4
+*.wav
+*.mp3
+*.m4a
+!assets/sfx/classic-light/*.wav
+
+# Optional private presenter pack
+renderer/assets/presenter/
+renderer/assets/presenter.json
+
+# Operating-system files
+.DS_Store
+Thumbs.db

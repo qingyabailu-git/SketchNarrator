@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sketch-narrator"
+version = "0.1.0"
+description = "Local, audio-timed hand-drawn explainer video workflow"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+  "av>=12",
+  "numpy>=1.26",
+  "opencv-python-headless>=4.9",
+  "Pillow>=10",
+  "edge-tts>=7.2",
+]
+
+[project.optional-dependencies]
+piper = [
+  "piper-tts[zh]>=1.7",
+]
+azure = [
+  "azure-cognitiveservices-speech>=1.51",
+]
+elevenlabs = [
+  "elevenlabs>=2.65",
+]
+sherpa = [
+  "sherpa-onnx>=1.13.5",
+  "soundfile>=0.13",
+]
+alignment = [
+  "faster-whisper>=1.1",
+]
+extraction = [
+  "faster-whisper>=1.1",
+  "yt-dlp>=2025.1",
+  "opencc-python-reimplemented>=0.1.7",
+]
+ffmpeg = [
+  "imageio-ffmpeg>=0.6",
+]
+dev = []
+
+[tool.setuptools]
+packages = []

@@ -1,0 +1,46 @@
+{
+  "version": 3,
+  "asset_set": "handdrawn-small-v3-20260824",
+  "default_mode": "small-hand",
+  "height_policy": {
+    "ratio_of_output_short_edge": 0.14,
+    "recommended_ratio_min": 0.12,
+    "recommended_ratio_max": 0.16,
+    "target_at_1920x1080_px": 151,
+    "note": "高度按最终输出画面短边计算；不再使用固定 493px。"
+  },
+  "verification": {
+    "transparent_rgba": true,
+    "drawing_source_size": [1214, 1295],
+    "eraser_source_size": [1401, 1123],
+    "note": "两张素材已实际查看；四角 alpha 为 0，无棋盘格、黑底、白边、绿边或水印。"
+  },
+  "assets": {
+    "drawing": {
+      "runtime_file": "drawing-hand.png",
+      "versioned_file": "drawing-hand-small-v3-20260824.png",
+      "anchor": {
+        "kind": "pen-tip",
+        "x": 0.0,
+        "y": 0.0,
+        "note": "素材按 alpha 裁切后，左上角就是铅笔尖落墨点。"
+      }
+    },
+    "eraser": {
+      "runtime_file": "eraser-hand.png",
+      "versioned_file": "eraser-hand-small-v3-20260824.png",
+      "anchor": {
+        "kind": "contact-center",
+        "x": 0.18,
+        "y": 0.53,
+        "note": "素材按 alpha 裁切后，指向板擦接触面的中心。"
+      }
+    }
+  },
+  "compatibility": {
+    "small-hand": "默认小手覆盖",
+    "no-hand": "完全不显示手部覆盖",
+    "full-hand": "兼容模式，沿用旧的大手高度策略",
+    "bare-tip": "历史兼容别名，实际含义是关闭手部覆盖，不是小裸笔尖"
+  }
+}

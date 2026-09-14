@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "sfx": {
+    "default_manifest": "path/to/your/sfx/manifest.json",
+    "gain_db_overrides": {
+      "writing": -14.0,
+      "eraser": -11.0,
+      "transition": -18.0,
+      "emphasis": -10.0,
+      "conclusion": -8.0
+    }
+  },
+  "presenter": {
+    "manifest_path": "path/to/your/presenter.json"
+  },
+  "font": {
+    "path": "path/to/your/cjk-font.ttf"
+  },
+  "bookends": {
+    "enabled": false,
+    "intro": "path/to/your/intro.mp4",
+    "outro": "path/to/your/outro.mp4",
+    "fit_mode": "contain",
+    "background_color": "#10141c"
+  }
+}

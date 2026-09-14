@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "id": "classic-light",
+  "name": "轻量经典音效",
+  "license": "CC0-1.0",
+  "sample_rate": 48000,
+  "sources": [
+    {
+      "files": ["writing-pencil.wav", "eraser-rub.wav"],
+      "title": "Pencil Sounds",
+      "author": "AntumDeluge",
+      "url": "https://opengameart.org/content/pencil-sounds",
+      "license": "CC0-1.0"
+    },
+    {
+      "files": ["transition-whoosh.wav"],
+      "title": "Erase / Escape",
+      "author": "Fupi",
+      "url": "https://opengameart.org/content/erase-escape",
+      "license": "CC0-1.0"
+    },
+    {
+      "files": ["emphasis-pop.wav"],
+      "title": "Pop sounds",
+      "author": "EZduzziteh",
+      "url": "https://opengameart.org/content/pop-sounds-0",
+      "license": "CC0-1.0"
+    },
+    {
+      "files": ["conclusion-chime.wav"],
+      "title": "Bell dings/chimes",
+      "author": "PWL",
+      "url": "https://opengameart.org/content/bell-dingschimes",
+      "license": "CC0-1.0"
+    }
+  ],
+  "effects": {
+    "writing": {
+      "file": "writing-pencil.wav",
+      "gain_db": -27.0,
+      "loop": true,
+      "fade_ms": 35
+    },
+    "eraser": {
+      "file": "eraser-rub.wav",
+      "gain_db": -23.0,
+      "loop": true,
+      "fade_ms": 30
+    },
+    "transition": {
+      "file": "transition-whoosh.wav",
+      "gain_db": -28.0,
+      "loop": false,
+      "fade_ms": 20
+    },
+    "emphasis": {
+      "file": "emphasis-pop.wav",
+      "gain_db": -21.0,
+      "loop": false,
+      "fade_ms": 4
+    },
+    "conclusion": {
+      "file": "conclusion-chime.wav",
+      "gain_db": -27.0,
+      "loop": false,
+      "fade_ms": 25
+    }
+  }
+}

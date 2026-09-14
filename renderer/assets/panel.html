@@ -1,0 +1,3636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SketchNarrator 编排控制台 V3.3</title>
+<style>
+  :root {
+    --bg-main: #14161a;
+    --bg-card: #1c1f26;
+    --bg-card-hover: #232730;
+    --bg-control: #262a33;
+    --border-color: #2a2e37;
+    --border-control: #3a3f4a;
+    --text-main: #e6e8ec;
+    --text-muted: #8b929c;
+    --primary: #3b82f6;
+    --primary-hover: #2f6fe0;
+    --accent: #f5a623;
+    --danger: #ef4444;
+    --success: #10b981;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg-main); color: var(--text-main); font-size: 13px; }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* Topbar */
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; flex-shrink: 0; z-index: 10; }
+  .brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px; letter-spacing: .5px; color: #fff; }
+  .brand .tag { background: rgba(59,130,246,.2); color: #7fb0ff; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: normal; }
+  button { background: var(--bg-control); color: var(--text-main); border: 1px solid var(--border-control); border-radius: 6px; padding: 5px 11px; cursor: pointer; font-size: 12.5px; transition: all .15s ease; display: inline-flex; align-items: center; gap: 5px; }
+  button:hover { background: #313641; border-color: #4b5260; }
+  button.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 500; }
+  button.primary:hover { background: var(--primary-hover); }
+  button.accent { background: #92400e; border-color: #d97706; color: #fef3c7; }
+  button.accent:hover { background: #b45309; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  select, input[type="text"], input[type="number"], textarea { background: var(--bg-control); color: var(--text-main); border: 1px solid var(--border-control); border-radius: 5px; padding: 5px 8px; font-size: 12.5px; }
+  select:focus, input:focus, textarea:focus { outline: 1px solid var(--primary); border-color: var(--primary); }
+  .spacer { flex: 1; }
+  .dirty-badge { color: var(--accent); font-weight: 600; font-size: 12px; display: none; }
+  .dirty-badge.show { display: inline-block; }
+  .mode-badge { font-size: 11px; padding: 2px 7px; border-radius: 4px; background: #334155; color: #94a3b8; }
+  .mode-badge.project { background: rgba(16,185,129,.2); color: #34d399; font-weight: 600; }
+  .mode-badge.legacy { background: rgba(245,166,35,.2); color: #fbbf24; }
+
+  /* Tab Navigation */
+  .tab-nav { display: flex; gap: 2px; background: #181a20; padding: 0 16px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+  .tab-btn { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; color: var(--text-muted); font-size: 13px; cursor: pointer; }
+  .tab-btn:hover { color: var(--text-main); background: rgba(255,255,255,.03); }
+  .tab-btn.active { color: #fff; border-bottom-color: var(--primary); font-weight: 600; background: rgba(59,130,246,.08); }
+  .advanced-nav { margin-left: auto; position: relative; align-self: center; }
+  .advanced-nav summary { list-style: none; cursor: pointer; padding: 7px 12px; color: var(--text-muted); font-size: 12px; user-select: none; }
+  .advanced-nav summary::-webkit-details-marker { display: none; }
+  .advanced-nav[open] summary { color: var(--text-main); background: rgba(255,255,255,.04); }
+  .advanced-nav .tab-btn { display: block; position: absolute; right: 0; top: 32px; z-index: 20; width: 210px; border: 1px solid var(--border-color); border-radius: 6px; background: #20232b; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,.28); }
+
+  /* Main Workspace */
+  .main-container { flex: 1; display: flex; min-height: 0; overflow: hidden; position: relative; }
+  .tab-pane { flex: 1; display: none; height: 100%; overflow: auto; }
+  .tab-pane.active { display: flex; }
+
+  /* Stage & Sidebar */
+  .stage-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: auto; padding: 14px; position: relative; background: #101216; }
+  .preview-stack { position: relative; display: inline-block; max-width: 100%; max-height: calc(100vh - 220px); }
+  canvas#canvas { display: block; max-width: 100%; max-height: calc(100vh - 220px); box-shadow: 0 8px 32px rgba(0,0,0,.6); background: #fdf0d0; border-radius: 6px; touch-action: none; }
+  #realPreviewVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #111; border-radius: 6px; display: none; }
+  .side-panel { width: 340px; flex: 0 0 340px; background: var(--bg-card); border-left: 1px solid var(--border-color); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .side-panel h3 { margin: 4px 0 2px; font-size: 13px; color: #cfd4dc; display: flex; justify-content: space-between; align-items: center; }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  .proxy-notice { position: absolute; bottom: 8px; left: 16px; background: rgba(0,0,0,.75); color: #cbd5e1; font-size: 11px; padding: 3px 8px; border-radius: 4px; pointer-events: none; border: 1px solid rgba(255,255,255,.1); }
+
+  /* Element list */
+  .elist { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+  .elist li { padding: 7px 9px; border-radius: 5px; margin-bottom: 4px; background: var(--bg-control); cursor: grab; display: flex; gap: 8px; align-items: center; border: 1px solid transparent; }
+  .elist li.sel { background: #382c10; border-color: var(--accent); }
+  .elist li.dragging { opacity: .4; }
+  .elist li.over { outline: 1px dashed var(--primary); }
+  .elist li .grip { color: #5b6270; cursor: grab; }
+  .elist li .seq { color: var(--accent); font-weight: 700; width: 22px; }
+  .elist li .time { color: #7fb0ff; font-variant-numeric: tabular-nums; width: 44px; }
+  .elist li .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Form Grids */
+  .field-grid { display: grid; grid-template-columns: 85px 1fr; gap: 7px 8px; align-items: center; font-size: 12px; }
+  .field-grid label { color: #94a3b8; font-size: 12px; }
+  .field-grid input, .field-grid select { width: 100%; }
+  .btn-group { display: flex; gap: 6px; }
+
+  /* Timeline Controls */
+  .controls-bar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--bg-card); border-top: 1px solid var(--border-color); flex-shrink: 0; }
+  .play-btn { width: 34px; height: 34px; font-size: 14px; border-radius: 50%; justify-content: center; }
+  #timelineSlider { flex: 1; accent-color: var(--primary); }
+  .time-label { font-variant-numeric: tabular-nums; color: #b8bec8; font-size: 12.5px; min-width: 120px; text-align: right; }
+
+  /* Tab 1: Style Cards */
+  .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 20px; width: 100%; }
+  .style-card { background: var(--bg-card); border: 2px solid var(--border-color); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: all .15s ease; position: relative; }
+  .style-card:hover { border-color: #4b5563; background: var(--bg-card-hover); }
+  .style-card.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 4px 20px rgba(59,130,246,.2); }
+  .style-card .badge-curr { position: absolute; top: 12px; right: 12px; background: var(--primary); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 12px; display: none; }
+  .style-card.active .badge-curr { display: inline-block; }
+  .style-reference { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 1px solid var(--border-color); border-radius: 6px; background: #111827; }
+  .style-title { font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .color-swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.3); display: inline-block; }
+  .style-desc { font-size: 12px; color: var(--text-muted); }
+  .style-prompt-box { background: rgba(0,0,0,.25); border-radius: 6px; padding: 10px; font-size: 11.5px; display: flex; flex-direction: column; gap: 4px; }
+  .style-prompt-box b { color: #cbd5e1; }
+  .style-forbid { color: #f87171; }
+
+  /* Tab 2: Advanced 5-Track Timeline */
+  .timeline-view-wrap { display: flex; flex-direction: column; width: 100%; padding: 16px; gap: 16px; }
+  .track-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .track-row { display: flex; align-items: center; gap: 10px; min-height: 28px; }
+  .track-label { width: 110px; font-size: 12px; color: #94a3b8; font-weight: 500; flex-shrink: 0; }
+  .track-content { flex: 1; height: 26px; background: rgba(0,0,0,.3); border-radius: 4px; position: relative; overflow: hidden; display: flex; align-items: center; }
+  .track-pill { position: absolute; height: 20px; border-radius: 3px; font-size: 11px; padding: 2px 6px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .pill-word { background: #1e3a8a; color: #bfdbfe; border: 1px solid #3b82f6; }
+  .pill-caption { background: #064e3b; color: #a7f3d0; border: 1px solid #10b981; }
+  .pill-element { background: #78350f; color: #fde68a; border: 1px solid #f59e0b; }
+  .pill-wash { background: #4c1d95; color: #ddd6fe; border: 1px solid #8b5cf6; }
+  .pill-hold { background: #065f46; color: #a7f3d0; border: 1px solid #10b981; }
+  .pill-hold.short { background: #991b1b; color: #fecaca; border: 1px solid #ef4444; }
+  .pill-eraser { background: #831843; color: #fbcfe8; border: 1px solid #ec4899; }
+  .pill-clean { background: #1e293b; color: #cbd5e1; border: 1px dashed #64748b; }
+  .pill-overlay { background: #713f12; color: #fef3c7; border: 1px solid #f59e0b; }
+
+  /* Cards & Validation */
+  .check-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .check-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .check-icon { font-size: 14px; width: 18px; }
+  .check-icon.pass { color: var(--success); }
+  .check-icon.fail { color: var(--danger); }
+  .check-icon.warn { color: var(--accent); }
+  .diff-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11.5px; max-height: 280px; overflow: auto; white-space: pre-wrap; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(2px); }
+  .modal-overlay.show { display: flex; }
+  .modal-card { background: var(--bg-card); border: 1px solid var(--border-control); border-radius: 8px; max-width: 540px; width: 90%; padding: 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 48px rgba(0,0,0,.6); }
+  .modal-card h3 { margin: 0; color: #fff; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; border: 1px solid #475569; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 200; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  .toast.show { opacity: 1; }
+  .toast.err { background: #7f1d1d; border-color: #ef4444; color: #fecaca; }
+  .toast.succ { background: #064e3b; border-color: #10b981; color: #d1fae5; }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="brand">
+    <span>SketchNarrator 编排控制台</span>
+    <span class="tag">V3.3 可保存预览</span>
+  </div>
+  <span id="modeBadge" class="mode-badge">未加载项目</span>
+
+  <button id="openProjectBtn" class="primary">📂 打开完整项目…</button>
+  <button id="openFolderBtn">📁 打开标注目录…</button>
+
+  <button id="prevBtn" disabled>‹</button>
+  <select id="sceneSel" disabled><option>请先打开项目或目录</option></select>
+  <button id="nextBtn" disabled>›</button>
+
+  <span class="spacer"></span>
+  <span id="dirtyFlag" class="dirty-badge">● 未保存修改</span>
+  <button id="undoSceneBtn" disabled>↶ 撤销本幕</button>
+  <button id="redoSceneBtn" disabled>↷ 重做本幕</button>
+  <button id="saveProjectBtn" class="primary" disabled>💾 保存并应用</button>
+  <button id="preparePlanBtn" disabled title="依据已保存内容重建计划；旧计划会备份，手动动画编辑可能被替换">准备执行计划</button><span id="ownershipReview" style="font-size:12px;color:#64748b">保存并准备后，顺序预览显示实际像素选区。重叠按小框优先，框外内容不绘制；画面疑点可按现状确认。</span>
+  <button id="realPreviewBtn" disabled>🎬 当前幕真实预览</button>
+  <button id="exportChangesBtn" class="accent" hidden disabled>📦 导出变更集 (panel-change-set.json)</button>
+  <button id="saveLegacyBtn" style="display:none;">💾 保存当前标注</button>
+</div>
+
+<!-- Tab Nav -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="tab-canvas">📐 1. 分区与绘制顺序</button>
+  <button class="tab-btn" data-tab="tab-timeline">⏱️ 2. 时序与六轨总览</button>
+  <button class="tab-btn" data-tab="tab-style">🎨 3. 项目与十种风格</button>
+  <button class="tab-btn" data-tab="tab-animation">✨ 4. 安全动画与转场</button>
+  <button class="tab-btn" data-tab="tab-render">🖐️ 5. 渲染与手部模式</button>
+  <details id="advancedTools" class="advanced-nav">
+    <summary>⚙ 高级工具</summary>
+    <button class="tab-btn" data-tab="tab-diff">📋 校验与差异导出</button>
+  </details>
+</div>
+
+<!-- Main Workspace -->
+<div class="main-container">
+
+  <!-- TAB 1: Canvas & Sequence -->
+  <div id="tab-canvas" class="tab-pane active">
+    <div class="stage-wrap">
+      <div id="emptyHint" class="hint" style="padding:40px;color:#9aa1ab;max-width:600px;line-height:1.8;">
+        请点击左上方 <b>📂 打开完整项目…</b> 选择项目根目录，或点 <b>📁 打开标注目录…</b> 选择包含线稿与 annotation.json 的文件夹。<br><br>
+        载入后，可在画布中<b>拖拽区域移动</b>，拖动 8 个手柄<b>调整区域尺寸</b>；右侧面板可实时配置区域名称、起止时序、分层上色参数与字幕。<br>
+        <span class="muted">注：本控制台预览为<b>矩形编排代理预览</b>，真实连续流式笔迹由渲染器根据 annotation 自动生成。</span>
+      </div>
+      <div class="preview-stack" id="previewStack" hidden>
+        <canvas id="canvas"></canvas>
+        <video id="realPreviewVideo" preload="metadata" playsinline></video>
+      </div>
+      <div class="proxy-notice" id="proxyNotice" hidden>🛡️ 编排代理预览模式 (非最终落墨成片)</div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <aside class="side-panel" id="sidePanel" hidden>
+      <h3>绘制模块列表 <span id="elemCount" class="muted"></span></h3>
+      <p class="muted" style="margin:0;">拖动列表项可调整绘制 sequence 顺序</p>
+      <p class="hint" style="margin:6px 0 0;">这里可以新增、删除、排序和调整区域；保存时由制作层自动同步分镜与语义 ID，你不需要编辑分镜。</p>
+      <ul id="elist" class="elist"></ul>
+      <div class="btn-group">
+        <button id="addBtn" style="flex:1;">＋ 新增区域</button>
+        <button id="delBtn" style="flex:1;" disabled>🗑️ 删除选中</button>
+      </div>
+
+      <h3>选中区域属性</h3>
+      <div class="field-grid" id="fields">
+        <label>元素名称</label><input type="text" id="f_label" disabled>
+        <label>叙事角色</label><input type="text" id="f_role" placeholder="如：原因/铺垫/核心" disabled>
+        <label>分镜对象 ID</label><input type="text" id="f_sources" readonly disabled>
+        <label>分镜分组说明</label><input type="text" id="f_grouping" placeholder="合并或拆分须先修改分镜" readonly disabled>
+        <label>触发口播短句</label><input type="text" id="f_trigger" placeholder="来自本幕原稿的连续短句" disabled>
+        <label>位置 x, y</label>
+        <div style="display:flex;gap:4px;"><input type="number" id="f_x" min="0" disabled><input type="number" id="f_y" min="0" disabled></div>
+        <label>尺寸 w, h</label>
+        <div style="display:flex;gap:4px;"><input type="number" id="f_w" min="1" disabled><input type="number" id="f_h" min="1" disabled></div>
+        <label>揭示方向</label>
+        <select id="f_dir" disabled>
+          <option value="top_to_bottom">从上至下</option>
+          <option value="bottom_to_top">从下至上</option>
+          <option value="left_to_right">从左至右</option>
+          <option value="right_to_left">从右至左</option>
+        </select>
+        <label>开始时间</label><input type="number" id="f_start" min="0" step="50" disabled>
+        <label>结束时间</label><input type="number" id="f_end" min="0" step="50" disabled>
+        <label>绘制时长</label><input type="number" id="f_dur" disabled>
+      </div>
+
+      <h3>对应字幕短句（从已有字幕选择）</h3>
+      <select id="f_sub_select" disabled></select>
+
+      <h3>本幕分层上色 (drawingPlan)</h3>
+      <div class="field-grid">
+        <label>画法模式</label>
+        <select id="dp_mode">
+          <option value="layered">layered (分层落墨上色 - 推荐)</option>
+          <option value="legacy">legacy (传统单步画法)</option>
+        </select>
+        <label>笔画规划器</label>
+        <select id="dp_planner">
+          <option value="semantic-v2">semantic-v2 (主体→轮廓→细节→纹理)</option>
+          <option value="reading-bands-v1">reading-bands-v1 (旧水平阅读带)</option>
+        </select>
+        <label>上色时序</label>
+        <select id="dp_color_schedule">
+          <option value="object-progressive-v1">逐对象识别后立即上基础色 (推荐)</option>
+          <option value="scene-final-v1">整幕末尾统一上色 (旧兼容)</option>
+        </select>
+        <label>语义对象归属</label>
+        <select id="dp_pixel_ownership">
+          <option value="semantic-masks-v1">按已确认对象绘制</option>
+        </select>
+        <label>上色保留比</label>
+        <input type="number" id="dp_ratio" min="0.18" max="0.45" step="0.01" value="0.32">
+        <label>最小上色ms</label>
+        <input type="number" id="dp_min_color" min="240" step="50" value="900">
+      </div>
+    </aside>
+  </div>
+
+  <!-- TAB 2: Timeline -->
+  <div id="tab-timeline" class="tab-pane">
+    <div class="timeline-view-wrap">
+      <div class="track-container">
+        <h3>多轨时序总览（基于 words.json 真实语音与字幕）</h3>
+        <div class="track-row">
+          <div class="track-label">1. 口播逐词 (只读)</div>
+          <div class="track-content" id="trackWords"></div>
+        </div>
+        <div class="track-row">
+          <div class="track-label">2. 字幕短句 (只读)</div>
+          <div class="track-content" id="trackCaptions"></div>
+        </div>
+        <div class="track-row">
+          <div class="track-label">3. 元素落墨</div>
+          <div class="track-content" id="trackElements"></div>
+        </div>
+        <div class="track-row">
+          <div class="track-label">4. 上色与停留</div>
+          <div class="track-content" id="trackWash"></div>
+        </div>
+        <div class="track-row">
+          <div class="track-label">5. 板擦转场</div>
+          <div class="track-content" id="trackEraser"></div>
+        </div>
+      </div>
+
+      <div class="check-card">
+        <h3>时序健康实时检查</h3>
+        <div id="timelineCheckList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: Style Registry -->
+  <div id="tab-style" class="tab-pane">
+    <div style="display:flex;flex-direction:column;width:100%;padding:20px;gap:16px;">
+      <div class="check-card">
+        <h3>当前项目风格配置</h3>
+        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+          <div>项目名称: <b id="projTitle">未加载</b></div>
+          <div>当前风格: <b id="projCurrStyle" style="color:var(--primary);">暖米黄素描白板 (warm-pencil)</b></div>
+          <div>画幅比例: <b id="projRatio">16:9</b></div>
+          <div>目标时长: <b id="projDuration">60s</b></div>
+        </div>
+        <div id="styleRecommendation" class="muted" style="margin-top:10px;">风格推荐将在项目加载后显示</div>
+      </div>
+
+      <h3>选择项目风格（十种注册风格）</h3>
+      <div class="style-grid" id="styleCardsGrid"></div>
+    </div>
+  </div>
+
+  <!-- TAB 4: Animation & Transition -->
+  <div id="tab-animation" class="tab-pane">
+    <div style="display:flex;width:100%;padding:20px;gap:20px;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
+        <div class="check-card">
+          <h3>V3.3 安全后动画导演规则</h3>
+          <p class="muted" style="margin:0;">
+            每幕最多 1 次有明确语义和真实时间的 focus-push；也可以没有附加效果。严禁凭空生成几何箭头、圆圈、横线或额外路径。<br>
+            前三种安全强调不显示手部，只改变真实前景像素及其极小轮廓邻域；缓推聚焦在 >= 1200ms 自然窗口下推近 4%–6% 不回弹。
+          </p>
+        </div>
+
+        <div class="check-card">
+          <h3>本幕视觉编排（只读）</h3>
+          <div id="visualPlanSummary" class="muted">项目加载后显示 visual-plan.json 中的真实镜头与节拍。</div>
+        </div>
+
+        <div class="check-card">
+          <h3>本幕安全语义效果 (animation-plan.json)</h3>
+          <div id="animScheduleStatus" class="hint" style="margin-bottom:10px;"></div>
+          <div class="field-grid" style="grid-template-columns:110px 1fr;">
+            <label>语义效果类型</label>
+            <select id="anim_effect">
+              <option value="skipped">skipped (跳过动画，保持稳定画面)</option>
+              <option value="focus-push">focus-push (缓推聚焦 - 4-6% 聚焦推近无回弹)</option>
+            </select>
+            <label>目标元素</label>
+            <select id="anim_target_elem"></select>
+            <label>语义目的说明</label>
+            <input type="text" id="anim_goal" placeholder="如：提示已经完整绘制的核心结论">
+            <label>开始/结束时间(ms，幕内)</label>
+            <div style="display:flex;gap:4px;"><input type="number" id="anim_start" min="0"><input type="number" id="anim_end" min="0"></div>
+            <label>时间预算 (ms)</label>
+            <input type="number" id="anim_budget" min="0">
+            <label>降级策略</label>
+            <input type="text" id="anim_fallback" value="stable-hold" disabled>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:380px;display:flex;flex-direction:column;gap:16px;">
+        <div class="check-card">
+          <h3>本幕板擦转场窗口 (Transition)</h3>
+          <p class="muted" style="margin:0;" id="transSceneTip">板擦必须跟随真实口播气口；擦除与净板合计不超过约 0.5 秒。最后一幕不擦除。</p>
+          <div class="field-grid" style="grid-template-columns:110px 1fr;margin-top:8px;" id="transFieldsWrap">
+            <label>启用板擦转场</label>
+            <input type="checkbox" id="trans_enable" checked>
+            <label>擦除开始/结束(ms，幕内)</label>
+            <div style="display:flex;gap:4px;"><input type="number" id="trans_erase_start"><input type="number" id="trans_erase_end"></div>
+            <label>净板开始/结束(ms，幕内)</label>
+            <div style="display:flex;gap:4px;"><input type="number" id="trans_clean_start"><input type="number" id="trans_clean_end"></div>
+          </div>
+          <div id="transPauseInfo" class="muted" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: Render & Hand -->
+  <div id="tab-render" class="tab-pane">
+    <div style="display:flex;flex-direction:column;width:100%;padding:20px;gap:16px;max-width:800px;margin:0 auto;">
+      <div class="check-card">
+        <h3>项目渲染器参数配置 (project.renderer_profile)</h3>
+        <div class="field-grid" style="grid-template-columns:120px 1fr;">
+          <label>笔迹落墨模式</label>
+          <select id="ren_ink_path">
+            <option value="skeleton">skeleton (骨架流式落墨 - 推荐)</option>
+            <option value="grid">grid (网格块落墨)</option>
+          </select>
+          <label>上色填充模式</label>
+          <select id="ren_color_fill">
+            <option value="local-brush">local-brush (逐对象局部手刷 - 推荐)</option>
+            <option value="contour-wipe">contour-wipe (旧版全区轮廓扫描)</option>
+            <option value="brush">brush (旧版沿线软刷)</option>
+          </select>
+          <label>笔画规划模式</label>
+          <select id="ren_stroke_planner">
+            <option value="semantic-v2">semantic-v2 (主体与组件优先 - 推荐)</option>
+            <option value="reading-bands-v1">reading-bands-v1 (旧水平阅读带)</option>
+          </select>
+          <label>分层绘制编排</label>
+          <select id="ren_draw_mode">
+            <option value="layered">layered (分层长短线拆解 - 默认)</option>
+            <option value="legacy">legacy (传统单阶段绘制)</option>
+          </select>
+          <label>手部模式</label>
+          <select id="ren_hand_mode">
+            <option value="small-hand">small-hand (标准小手 - 默认短边 14%)</option>
+            <option value="presenter">presenter (用户自有角色资产包)</option>
+            <option value="no-hand">no-hand (完全无手 - 纯净笔迹)</option>
+            <option value="full-hand">full-hand (传统大手 - 历史兼容)</option>
+          </select>
+        </div>
+        <div id="presenterNotice" class="muted" style="margin-top:6px;color:#f5a623;">
+          ⚠️ 提示：Presenter 需要用户自有的本地资产包。未提供合法资产包时请使用标准手部。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 6: Diff & Export -->
+  <div id="tab-diff" class="tab-pane">
+    <div class="diff-view-wrap">
+      <div class="check-card">
+        <h3>门禁自检与规则校验（实时计算）</h3>
+        <div id="exportChecklist"></div>
+      </div>
+
+      <div class="check-card">
+        <h3>真实变更集差异汇总</h3>
+        <div id="diffFilesList" class="muted">未产生任何修改</div>
+        <div id="diffCodeBox" class="diff-box" style="display:none;"></div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:12px;">
+        <button id="exportModalBtn" class="primary" style="padding:10px 20px;font-size:14px;" disabled>📦 生成并导出 panel-change-set.json</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom Play Controls -->
+<div class="controls-bar">
+  <button id="playBtn" class="play-btn" disabled>▶</button>
+  <input type="range" id="timelineSlider" min="0" max="1000" value="0" disabled>
+  <span id="timeLabel" class="time-label">0.00s / 0.00s</span>
+</div>
+
+<!-- Style Switch Confirm Modal -->
+<div class="modal-overlay" id="styleModal">
+  <div class="modal-card">
+    <h3>⚠️ 确认切换项目风格？</h3>
+    <div style="font-size:13px;line-height:1.7;color:#cbd5e1;">
+      <b>请注意：切换风格不是给现有图片加滤镜！</b><br>
+      风格是项目级规范，切换后将修改生图 Prompt 规范和默认渲染参数。<br>
+      已有整板图不会自动变为新风格。切换风格后，工作流将<b>撤销整板图确认状态</b>，并要求重新生成和确认所有场景整板图。
+    </div>
+    <div style="margin:8px 0;background:rgba(239,68,68,.1);border:1px solid #ef4444;padding:10px;border-radius:6px;font-size:12px;color:#fca5a5;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="styleAcknowledge"> 我已知晓切换风格需要重新生成整板图
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button id="styleCancelBtn">取消</button>
+      <button id="styleConfirmBtn" class="primary" disabled>确认修改风格</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- Load deterministic Style Registry Asset if available -->
+<script src="style-registry-data.js"></script>
+<script>
+// references/style-registry.json is the only authoritative source. The generated
+// asset embeds its source SHA256 and is intentionally required at runtime.
+const STYLE_REGISTRY_METADATA = (typeof window !== 'undefined')
+  ? window.SKETCH_STYLE_REGISTRY_METADATA
+  : null;
+const STYLE_REGISTRY = STYLE_REGISTRY_METADATA?.data || { version: 0, styles: [] };
+const $ = id => document.getElementById(id);
+const forceFolderUpload = new URLSearchParams(window.location.search).get('folder-upload') === '1';
+const serverProject = new URLSearchParams(window.location.search).get('server-project') === '1';
+const canFS = !forceFolderUpload && 'showDirectoryPicker' in window;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const finiteNumber = (value, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+const sourceRevealTiming = element => {
+  const reveal = element?.reveal || {};
+  return {
+    startMs: Math.max(0, finiteNumber(reveal.startMs, 0)),
+    durationMs: Math.max(0, finiteNumber(reveal.durationMs, 0))
+  };
+};
+function savedDrawingBudget(element) {
+  const sc = App.scenes.find(scene => (scene.annData?.elements || []).includes(element));
+  const row = App.animationPlanData?.drawingBudgets?.[sc?.id]?.[String(element?.id)];
+  const original = sourceRevealTiming(element);
+  return row && row.startMs === original.startMs && row.originalDurationMs === original.durationMs
+    ? row : null;
+}
+const revealTiming = element => {
+  const row = savedDrawingBudget(element);
+  return row ? { startMs: row.startMs, durationMs: row.durationMs } : sourceRevealTiming(element);
+};
+const PRE_ACTION_RESERVE_MS = 100;
+const POST_ACTION_STABLE_MS = 250;
+const TRANSITION_STABLE_HOLD_MS = 0;
+const MIN_ERASE_MS = 240;
+const MAX_ERASE_MS = 420;
+const MIN_CLEAN_CANVAS_MS = 60;
+const MAX_ACTIVE_TRANSITION_MS = 500;
+const MIN_TRANSITION_GAP_MS = MIN_ERASE_MS + MIN_CLEAN_CANVAS_MS;
+const EFFECT_MIN_MS = {
+  'focus-push': 1200
+};
+
+// Canonical JSON helper for lossless deep comparison
+function canonicalJson(obj) {
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(canonicalJson).join(',') + ']';
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJson(obj[k])).join(',') + '}';
+}
+
+// Global Application State
+const App = {
+  mode: null, // 'project' or 'legacy'
+  dirHandle: null,
+  projectData: null,
+  originalProjectData: null,
+  stateData: null,
+  storyboardData: null,
+  visualPlanData: null,
+  animationPlanData: null,
+  originalAnimationPlanData: null,
+  wordsData: null,
+  captionsText: '',
+  captionsList: [],
+  audioUrl: null,
+  audio: null,
+  sessionToken: null,
+  mediaSessionReady: false,
+  boardStatus: { ready: true, missingImages: [], missingAnnotations: [], recoveredImages: [] },
+  sceneImageStates: {},
+  scenes: [],
+  activeSceneIdx: -1,
+  selectedElemIdx: -1,
+  time: 0,
+  playing: false,
+  lastTick: 0,
+  rafId: null,
+  realPreviewUrl: null,
+  proxyPlaybackActive: false,
+  paperColor: '#fdf0d0',
+  dirty: false,
+  originalHashes: {}, // path -> sha256
+  originalContent: {}, // path -> canonical JSON string
+  drag: null,
+  dragRow: -1
+};
+
+function takeSessionTokenFromLocation() {
+  if (!serverProject) return;
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  App.sessionToken = params.get('token') || null;
+}
+
+function clearSessionTokenFromLocation() {
+  if (window.location.hash) {
+    window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+  }
+}
+
+takeSessionTokenFromLocation();
+
+// Tab Navigation
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = btn.dataset.tab;
+    $(tabId).classList.add('active');
+    if (tabId === 'tab-diff') $('advancedTools').open = false;
+    if (tabId === 'tab-timeline') renderTimelineTab();
+    if (tabId === 'tab-diff') renderDiffTab();
+    if (tabId === 'tab-canvas') renderCanvas();
+    if (tabId === 'tab-animation') renderAnimationTab();
+  });
+});
+
+// Initialize Style Cards
+function initStyleCards() {
+  const grid = $('styleCardsGrid');
+  if (!(STYLE_REGISTRY.styles || []).length) {
+    grid.innerHTML = '<div class="empty">风格注册表未加载。请确认 style-registry-data.js 与本页面位于同一目录。</div>';
+    return;
+  }
+  grid.innerHTML = (STYLE_REGISTRY.styles || []).map(style => {
+    const styleId = String(style.id || 'unknown');
+    const styleName = String(style.name || styleId);
+    const prompt = style.prompt || {};
+    const renderer = style.renderer || {};
+    const bgMatch = String(prompt.background || '').match(/#[0-9a-fA-F]{6}/);
+    const bgHex = bgMatch ? bgMatch[0] : '#f5ebd7';
+    const isCurrent = styleId === (App.projectData?.style_id || 'warm-pencil');
+    return `
+      <div class="style-card ${isCurrent ? 'active' : ''}" data-style-id="${escapeHtml(styleId)}">
+        <span class="badge-curr">当前选用</span>
+        <img class="style-reference" src="/style-reference/${encodeURIComponent(styleId)}/reference.png" alt="${escapeHtml(styleName)}参考图" loading="lazy">
+        <div class="style-title">
+          <span class="color-swatch" style="background:${bgHex}"></span>
+          <span>${escapeHtml(styleName)}</span>
+          <span class="muted" style="font-size:11px;font-weight:normal;">(${escapeHtml(styleId)})</span>
+        </div>
+        <div class="style-desc"><b>适用场景：</b>${escapeHtml(style.intended_use || '')}</div>
+        <div class="style-prompt-box">
+          <div><b>背景：</b>${escapeHtml(prompt.background || '')}</div>
+          <div><b>线条：</b>${escapeHtml(prompt.line || '')}</div>
+          <div><b>强调色：</b>${escapeHtml(prompt.accents || '')}</div>
+          <div class="style-forbid"><b>禁用：</b>${escapeHtml(prompt.forbid || '')}</div>
+        </div>
+        <div class="muted" style="font-size:11px;margin-top:auto;">
+          渲染参数: ${escapeHtml(renderer.ink_path || '')} / ${escapeHtml(renderer.color_fill || '')} / ${escapeHtml(renderer.draw_mode || '')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.style-card').forEach(card => {
+    card.addEventListener('click', () => onSelectStyleCard(card.dataset.styleId));
+  });
+}
+initStyleCards();
+if (!STYLE_REGISTRY_METADATA?.sourceSha256) {
+  setTimeout(() => toast('风格注册表缺失或无来源哈希，风格编辑已停用', 'err'), 0);
+}
+
+// Toast helper
+let toastTimer;
+function toast(msg, type = 'info') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type === 'err' ? 'err' : (type === 'succ' ? 'succ' : ''));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 2600);
+}
+
+// Fallback Folder Input
+const folderInput = document.createElement('input');
+folderInput.type = 'file';
+folderInput.webkitdirectory = true;
+folderInput.multiple = true;
+folderInput.hidden = true;
+document.body.appendChild(folderInput);
+
+// Open Full Project
+$('openProjectBtn').addEventListener('click', openProjectFolder);
+async function openProjectFolder() {
+  try {
+    if (canFS) {
+      const dir = await window.showDirectoryPicker({ mode: 'readwrite' });
+      await loadFullProject(dir);
+    } else {
+      folderInput.onchange = async () => {
+        await loadProjectFromFiles([...folderInput.files]);
+      };
+      folderInput.click();
+    }
+  } catch (e) {
+    if (e && e.name !== 'AbortError') toast('打开项目失败：' + e.message, 'err');
+  }
+}
+
+// Parse SRT to subtitle blocks
+function parseSRT(text) {
+  const blocks = [];
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) { i++; continue; }
+    if (/^\d+$/.test(line)) {
+      i++;
+      if (i < lines.length && lines[i].includes('-->')) {
+        const timeLine = lines[i].trim();
+        const [startStr, endStr] = timeLine.split('-->').map(s => s.trim());
+        const startMs = parseSRTTime(startStr);
+        const endMs = parseSRTTime(endStr);
+        i++;
+        let content = '';
+        while (i < lines.length && lines[i].trim()) {
+          content += (content ? ' ' : '') + lines[i].trim();
+          i++;
+        }
+        blocks.push({ startMs, endMs, text: content });
+        continue;
+      }
+    }
+    i++;
+  }
+  return blocks;
+}
+
+function parseSRTTime(tStr) {
+  if (!tStr) return 0;
+  const parts = tStr.split(':');
+  if (parts.length < 3) return 0;
+  const secParts = parts[2].split(',');
+  const h = parseInt(parts[0], 10) || 0;
+  const m = parseInt(parts[1], 10) || 0;
+  const s = parseInt(secParts[0], 10) || 0;
+  const ms = parseInt(secParts[1] || '0', 10) || 0;
+  return (h * 3600 + m * 60 + s) * 1000 + ms;
+}
+
+// Load Project via File System Access API
+async function loadFullProject(dirHandle) {
+  App.mode = 'project';
+  App.dirHandle = dirHandle;
+  App.originalHashes = {};
+  App.originalContent = {};
+  $('modeBadge').textContent = '完整项目工程';
+  $('modeBadge').className = 'mode-badge project';
+
+  // 1. Read project.json
+  try {
+    const projFile = await (await dirHandle.getFileHandle('project.json')).getFile();
+    const projText = await projFile.text();
+    App.projectData = JSON.parse(projText);
+    App.originalProjectData = JSON.parse(projText);
+    App.originalHashes['project.json'] = await computeSHA256(await projFile.arrayBuffer());
+    App.originalContent['project.json'] = canonicalJson(App.originalProjectData);
+  } catch (e) {
+    throw new Error('未找到有效的 project.json，请确认选择的是项目根目录。');
+  }
+
+  // 2. Read state.json
+  try {
+    const stateFile = await (await dirHandle.getFileHandle('state.json')).getFile();
+    App.stateData = JSON.parse(await stateFile.text());
+  } catch (e) { App.stateData = {}; }
+
+  // 3. Read storyboard.json
+  try {
+    const sbFile = await (await dirHandle.getFileHandle('storyboard.json')).getFile();
+    App.storyboardData = JSON.parse(await sbFile.text());
+    App.originalStoryboardData = JSON.parse(JSON.stringify(App.storyboardData));
+    App.originalHashes['storyboard.json'] = await computeSHA256(await sbFile.arrayBuffer());
+    App.originalContent['storyboard.json'] = canonicalJson(App.originalStoryboardData);
+  } catch (e) { App.storyboardData = { scenes: [] }; }
+
+  // 4. Read animation-plan.json
+  try {
+    const animFile = await (await dirHandle.getFileHandle('animation-plan.json')).getFile();
+    const animText = await animFile.text();
+    App.animationPlanData = JSON.parse(animText);
+    App.originalAnimationPlanData = JSON.parse(animText);
+    App.originalHashes['animation-plan.json'] = await computeSHA256(await animFile.arrayBuffer());
+    App.originalContent['animation-plan.json'] = canonicalJson(App.originalAnimationPlanData);
+  } catch (e) {
+    App.animationPlanData = { version: 3, planVersion: "3.3", scenes: [] };
+    App.originalAnimationPlanData = { version: 3, planVersion: "3.3", scenes: [] };
+    App.originalHashes['animation-plan.json'] = null;
+    App.originalContent['animation-plan.json'] = canonicalJson(App.originalAnimationPlanData);
+  }
+
+  // 5. Read audio/words.json & audio/captions.srt (Read-only)
+  try {
+    const audioDir = await dirHandle.getDirectoryHandle('audio');
+    try {
+      const wordsFile = await (await audioDir.getFileHandle('words.json')).getFile();
+      App.wordsData = JSON.parse(await wordsFile.text());
+    } catch (e) { App.wordsData = null; }
+    try {
+      const capFile = await (await audioDir.getFileHandle('captions.srt')).getFile();
+      App.captionsText = await capFile.text();
+      App.captionsList = parseSRT(App.captionsText);
+    } catch (e) {
+      App.captionsText = '';
+      App.captionsList = [];
+    }
+  } catch (e) {}
+
+  // 6. Read boards and annotations
+  let boardsDir = null, annDir = null;
+  try { boardsDir = await dirHandle.getDirectoryHandle('boards'); } catch (e) {}
+  try { annDir = await dirHandle.getDirectoryHandle('annotations'); } catch (e) {}
+
+  const scenes = [];
+  const sbScenes = App.storyboardData?.scenes || [];
+  for (let i = 0; i < sbScenes.length; i++) {
+    const sc = sbScenes[i];
+    const sid = sc.id;
+    let imgUrl = null, annData = null, annHandle = null;
+
+    if (boardsDir) {
+      for (const ext of ['.png', '.jpg', '.jpeg', '.webp']) {
+        try {
+          const h = await boardsDir.getFileHandle(sid + ext);
+          const f = await h.getFile();
+          imgUrl = URL.createObjectURL(f);
+          break;
+        } catch (e) {}
+      }
+    }
+
+    const annRel = `annotations/${sid}.annotation.json`;
+    if (annDir) {
+      try {
+        annHandle = await annDir.getFileHandle(sid + '.annotation.json');
+        const f = await annHandle.getFile();
+        const text = await f.text();
+        annData = JSON.parse(text);
+        App.originalHashes[annRel] = await computeSHA256(await f.arrayBuffer());
+        App.originalContent[annRel] = canonicalJson(annData);
+      } catch (e) {}
+    }
+
+    if (!annData) {
+      annData = {
+        sceneId: sid,
+        canvas: { width: 1920, height: 1080 },
+        sceneDurationMs: (sc.end_ms - sc.start_ms) || 6000,
+        elements: []
+      };
+      App.originalHashes[annRel] = null;
+      App.originalContent[annRel] = canonicalJson(annData);
+    }
+
+    scenes.push({
+      id: sid,
+      title: sc.title || sid,
+      narration: sc.narration || '',
+      startMs: sc.start_ms || 0,
+      endMs: sc.end_ms || 6000,
+      imgUrl: imgUrl,
+      annData: annData,
+      annHandle: annHandle,
+      annRelPath: annRel
+    });
+  }
+
+  App.scenes = scenes;
+  reconcileProjectSemanticIds();
+  updateSemanticStructureControls();
+  initProjectHeader();
+  initSceneDropdown();
+  if (scenes.length > 0) loadScene(0);
+  checkDirtyAndDiff();
+  toast(`项目已加载：${App.projectData.title || '成功'}`, 'succ');
+}
+
+function uploadedFileMap(files) {
+  const map = new Map();
+  files.forEach(file => {
+    const raw = (file.webkitRelativePath || file.name).replaceAll('\\', '/');
+    const parts = raw.split('/').filter(Boolean);
+    const relative = parts.length > 1 ? parts.slice(1).join('/') : file.name;
+    map.set(relative, file);
+  });
+  return map;
+}
+
+async function readUploadedJson(fileMap, path, fallback = null) {
+  const file = fileMap.get(path);
+  if (!file) return fallback;
+  return JSON.parse(await file.text());
+}
+
+// Folder-upload fallback for browsers or permission setups without the File
+// System Access API. It is read-only; edits are exported as a change-set file.
+async function loadProjectFromFiles(files) {
+  const fileMap = uploadedFileMap(files);
+  const projectFile = fileMap.get('project.json');
+  if (!projectFile) throw new Error('未找到有效的 project.json，请确认选择的是项目根目录。');
+
+  App.mode = 'project';
+  App.dirHandle = null;
+  App.originalHashes = {};
+  App.originalContent = {};
+  $('modeBadge').textContent = '完整项目工程（导出修改）';
+  $('modeBadge').className = 'mode-badge project';
+
+  const projectText = await projectFile.text();
+  App.projectData = JSON.parse(projectText);
+  App.originalProjectData = JSON.parse(projectText);
+  App.originalHashes['project.json'] = await computeSHA256(await projectFile.arrayBuffer());
+  App.originalContent['project.json'] = canonicalJson(App.originalProjectData);
+  App.stateData = await readUploadedJson(fileMap, 'state.json', {});
+  App.storyboardData = await readUploadedJson(fileMap, 'storyboard.json', { scenes: [] });
+  App.originalStoryboardData = JSON.parse(JSON.stringify(App.storyboardData));
+  const storyboardFile = fileMap.get('storyboard.json');
+  App.originalHashes['storyboard.json'] = storyboardFile ? await computeSHA256(await storyboardFile.arrayBuffer()) : null;
+  App.originalContent['storyboard.json'] = canonicalJson(App.originalStoryboardData);
+
+  const animationFile = fileMap.get('animation-plan.json');
+  if (animationFile) {
+    const animationText = await animationFile.text();
+    App.animationPlanData = JSON.parse(animationText);
+    App.originalAnimationPlanData = JSON.parse(animationText);
+    App.originalHashes['animation-plan.json'] = await computeSHA256(await animationFile.arrayBuffer());
+  } else {
+    App.animationPlanData = { version: 3, planVersion: '3.3', scenes: [] };
+    App.originalAnimationPlanData = { version: 3, planVersion: '3.3', scenes: [] };
+    App.originalHashes['animation-plan.json'] = null;
+  }
+  App.originalContent['animation-plan.json'] = canonicalJson(App.originalAnimationPlanData);
+
+  App.wordsData = await readUploadedJson(fileMap, 'audio/words.json', null);
+  App.captionsText = fileMap.get('audio/captions.srt') ? await fileMap.get('audio/captions.srt').text() : '';
+  App.captionsList = parseSRT(App.captionsText);
+
+  const scenes = [];
+  for (const sc of (App.storyboardData?.scenes || [])) {
+    const sid = sc.id;
+    let boardFile = null;
+    for (const ext of ['.png', '.jpg', '.jpeg', '.webp']) {
+      boardFile = fileMap.get(`boards/${sid}${ext}`);
+      if (boardFile) break;
+    }
+    const annRel = `annotations/${sid}.annotation.json`;
+    const annFile = fileMap.get(annRel);
+    let annData;
+    if (annFile) {
+      const annText = await annFile.text();
+      annData = JSON.parse(annText);
+      App.originalHashes[annRel] = await computeSHA256(await annFile.arrayBuffer());
+    } else {
+      annData = {
+        sceneId: sid,
+        canvas: { width: 1920, height: 1080 },
+        sceneDurationMs: (sc.end_ms - sc.start_ms) || 6000,
+        elements: []
+      };
+      App.originalHashes[annRel] = null;
+    }
+    App.originalContent[annRel] = canonicalJson(annData);
+    scenes.push({
+      id: sid,
+      title: sc.title || sid,
+      narration: sc.narration || '',
+      startMs: sc.start_ms || 0,
+      endMs: sc.end_ms || 6000,
+      imgUrl: boardFile ? URL.createObjectURL(boardFile) : null,
+      annData,
+      annHandle: null,
+      annRelPath: annRel
+    });
+  }
+
+  App.scenes = scenes;
+  reconcileProjectSemanticIds();
+  updateSemanticStructureControls();
+  initProjectHeader();
+  initSceneDropdown();
+  if (scenes.length > 0) loadScene(0);
+  checkDirtyAndDiff();
+  toast(`项目已加载：${App.projectData.title || '成功'}（修改将导出为变更集）`, 'succ');
+}
+
+// Localhost project bridge. This is the default path launched by workflow.py
+// and avoids file:// restrictions and repeated folder permission prompts.
+async function loadProjectFromServer(preferredSceneId = null) {
+  let response = null;
+  if (App.sessionToken) {
+    const sessionResponse = await fetch('/api/session', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { 'X-Panel-Token': App.sessionToken }
+    });
+    const sessionPayload = await sessionResponse.json();
+    if (!sessionResponse.ok || sessionPayload.error) {
+      throw new Error(sessionPayload.error || `HTTP ${sessionResponse.status}`);
+    }
+    // Prove that the browser stored and will send the HttpOnly cookie before
+    // removing the fragment token. The probe deliberately omits the token
+    // header, so a successful response guarantees refresh-safe authentication.
+    response = await fetch('/api/bootstrap', {
+      cache: 'no-store',
+      credentials: 'same-origin'
+    });
+    if (response.ok) {
+      clearSessionTokenFromLocation();
+      App.sessionToken = null;
+    } else {
+      // Some browser privacy modes can reject even first-party session
+      // cookies. Keep the fragment token visible and use the header fallback
+      // so the workbench remains fully usable across refreshes.
+      response = await fetch('/api/bootstrap', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'X-Panel-Token': App.sessionToken }
+      });
+    }
+  }
+  if (!response) {
+    response = await fetch('/api/bootstrap', {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: App.sessionToken ? { 'X-Panel-Token': App.sessionToken } : {}
+    });
+  }
+  const payload = await response.json();
+  if (response.status === 403) {
+    App.mediaSessionReady = false;
+    throw new Error(
+      App.sessionToken
+        ? '浏览器未能建立持久工作台会话；令牌已保留，请刷新重试或重新通过 workflow.py panel 打开。'
+        : '工作台会话已失效，请重新通过 workflow.py panel 打开。'
+    );
+  }
+  if (!response.ok || payload.error) throw new Error(payload.error || `HTTP ${response.status}`);
+  App.mediaSessionReady = true;
+  App.mode = 'project';
+  App.dirHandle = null;
+  App.originalHashes = { 'project.json': payload.projectSha256 };
+  App.originalContent = { 'project.json': canonicalJson(payload.project) };
+  App.projectData = payload.project;
+  App.originalProjectData = JSON.parse(JSON.stringify(payload.project));
+  App.stateData = payload.state || {};
+  App.storyboardData = payload.storyboard || { scenes: [] };
+  App.originalStoryboardData = JSON.parse(JSON.stringify(App.storyboardData));
+  App.originalHashes['storyboard.json'] = payload.storyboardSha256;
+  App.originalContent['storyboard.json'] = canonicalJson(App.originalStoryboardData);
+  App.visualPlanData = payload.visualPlan || null;
+  App.animationPlanData = payload.animationPlan || { version: 3, planVersion: '3.3', scenes: [] };
+  App.originalAnimationPlanData = JSON.parse(JSON.stringify(App.animationPlanData));
+  App.originalHashes['animation-plan.json'] = payload.animationPlanSha256;
+  App.originalContent['animation-plan.json'] = canonicalJson(App.originalAnimationPlanData);
+  App.wordsData = payload.words || null;
+  App.captionsText = payload.captions || '';
+  App.captionsList = parseSRT(App.captionsText);
+  App.audioUrl = payload.audioUrl || null;
+  App.boardStatus = payload.boardStatus || {
+    ready: true, missingImages: [], missingAnnotations: [], recoveredImages: []
+  };
+  App.sceneImageStates = {};
+  if (App.audio) {
+    App.audio.pause();
+    App.audio = null;
+  }
+  if (App.audioUrl) {
+    App.audio = new Audio(App.audioUrl);
+    App.audio.preload = 'auto';
+  }
+  App.scenes = (payload.scenes || []).map(sc => {
+    const rel = sc.annotationRelPath;
+    App.originalHashes[rel] = sc.annotationSha256;
+    App.originalContent[rel] = canonicalJson(sc.annotation);
+    App.sceneImageStates[sc.id] = sc.imageUrl ? 'pending' : 'missing';
+    return {
+      id: sc.id,
+      title: sc.title || sc.id,
+      narration: sc.narration || '',
+      startMs: sc.startMs || 0,
+      endMs: sc.endMs || 6000,
+      imgUrl: sc.imageUrl,
+      annData: sc.annotation,
+      annHandle: null,
+      annRelPath: rel
+    };
+  });
+  restorePanelDraft();
+  reconcileProjectSemanticIds();
+  restoreSceneHistories();
+  updateSemanticStructureControls();
+  $('modeBadge').textContent = '本地项目工程（自由保存，生产时检查）';
+  $('modeBadge').className = 'mode-badge project';
+  initProjectHeader();
+  initSceneDropdown();
+  if (App.scenes.length > 0) {
+    const preferredIndex = preferredSceneId
+      ? Math.max(0, App.scenes.findIndex(scene => scene.id === preferredSceneId))
+      : 0;
+    loadScene(preferredIndex);
+  }
+  checkDirtyAndDiff();
+  $('saveProjectBtn').style.display = 'inline-flex';
+  if (App.boardStatus.ready) {
+    toast(`工作台已自动加载：${App.projectData.title || '项目'}`, 'succ');
+  } else {
+    const missing = [...(App.boardStatus.missingImages || []), ...(App.boardStatus.missingAnnotations || [])];
+    toast(`项目板图不完整：${[...new Set(missing)].join('、') || '存在缺失文件'}；编辑仍可保存。`, 'err');
+  }
+}
+
+// Legacy Folder Mode
+$('openFolderBtn').addEventListener('click', openLegacyFolder);
+async function openLegacyFolder() {
+  try {
+    if (canFS) {
+      const dir = await window.showDirectoryPicker({ mode: 'readwrite' });
+      await loadLegacyDir(dir);
+    } else {
+      folderInput.onchange = async () => {
+        await loadLegacyFromFiles([...folderInput.files]);
+      };
+      folderInput.click();
+    }
+  } catch (e) {
+    if (e && e.name !== 'AbortError') toast('打开失败：' + e.message, 'err');
+  }
+}
+
+async function loadLegacyDir(dirHandle) {
+  App.mode = 'legacy';
+  App.dirHandle = dirHandle;
+  App.originalHashes = {};
+  App.originalContent = {};
+  $('modeBadge').textContent = '标注文件夹模式';
+  $('modeBadge').className = 'mode-badge legacy';
+  $('saveLegacyBtn').style.display = 'inline-block';
+
+  const files = {};
+  for await (const [name, h] of dirHandle.entries()) {
+    if (h.kind === 'file') files[name] = h;
+  }
+
+  const imgExts = ['.png', '.jpg', '.jpeg', '.webp'];
+  const scenes = [];
+  for (const name of Object.keys(files)) {
+    const ext = imgExts.find(e => name.toLowerCase().endsWith(e));
+    if (ext) {
+      const base = name.slice(0, -ext.length);
+      const annName = base + '.annotation.json';
+      let annData = null, annHandle = null;
+      if (files[annName]) {
+        try {
+          annHandle = files[annName];
+          const f = await annHandle.getFile();
+          const text = await f.text();
+          annData = JSON.parse(text);
+          App.originalHashes[annName] = await computeSHA256(await f.arrayBuffer());
+          App.originalContent[annName] = canonicalJson(annData);
+        } catch (e) {}
+      }
+      const imgFile = await files[name].getFile();
+      scenes.push({
+        id: base,
+        title: base,
+        narration: '',
+        startMs: 0,
+        endMs: annData?.sceneDurationMs || 6000,
+        imgUrl: URL.createObjectURL(imgFile),
+        annData: annData || { sceneId: base, canvas: { width: 1920, height: 1080 }, elements: [] },
+        annHandle: annHandle,
+        annRelPath: annName
+      });
+    }
+  }
+
+  App.scenes = scenes;
+  updateSemanticStructureControls();
+  App.boardStatus = { ready: true, missingImages: [], missingAnnotations: [], recoveredImages: [] };
+  App.sceneImageStates = {};
+  initSceneDropdown();
+  if (scenes.length > 0) loadScene(0);
+  checkDirtyAndDiff();
+  toast(`已载入 ${scenes.length} 个场景`, 'succ');
+}
+
+async function loadLegacyFromFiles(files) {
+  const fileMap = uploadedFileMap(files);
+  App.mode = 'legacy';
+  App.dirHandle = null;
+  App.originalHashes = {};
+  App.originalContent = {};
+  $('modeBadge').textContent = '标注文件夹模式（导出修改）';
+  $('modeBadge').className = 'mode-badge legacy';
+  $('saveLegacyBtn').style.display = 'none';
+
+  const imgExts = ['.png', '.jpg', '.jpeg', '.webp'];
+  const scenes = [];
+  for (const [path, file] of fileMap.entries()) {
+    if (path.includes('/')) continue;
+    const ext = imgExts.find(candidate => path.toLowerCase().endsWith(candidate));
+    if (!ext) continue;
+    const base = path.slice(0, -ext.length);
+    const annName = `${base}.annotation.json`;
+    const annFile = fileMap.get(annName);
+    let annData = null;
+    if (annFile) {
+      annData = JSON.parse(await annFile.text());
+      App.originalHashes[annName] = await computeSHA256(await annFile.arrayBuffer());
+      App.originalContent[annName] = canonicalJson(annData);
+    }
+    scenes.push({
+      id: base,
+      title: base,
+      narration: '',
+      startMs: 0,
+      endMs: annData?.sceneDurationMs || 6000,
+      imgUrl: URL.createObjectURL(file),
+      annData: annData || { sceneId: base, canvas: { width: 1920, height: 1080 }, elements: [] },
+      annHandle: null,
+      annRelPath: annName
+    });
+  }
+  App.scenes = scenes;
+  updateSemanticStructureControls();
+  App.boardStatus = { ready: true, missingImages: [], missingAnnotations: [], recoveredImages: [] };
+  App.sceneImageStates = {};
+  initSceneDropdown();
+  if (scenes.length > 0) loadScene(0);
+  checkDirtyAndDiff();
+  toast(`已载入 ${scenes.length} 个场景（修改将导出为变更集）`, 'succ');
+}
+
+function initProjectHeader() {
+  if (!App.projectData) return;
+  $('projTitle').textContent = App.projectData.title || '未命名项目';
+  $('projCurrStyle').textContent = `${App.projectData.style || '暖米黄素描白板'} (${App.projectData.style_id || 'warm-pencil'})`;
+  $('projRatio').textContent = App.projectData.aspect_ratio || '16:9';
+  $('projDuration').textContent = (App.projectData.target_duration_sec || 60) + 's';
+  const selection = App.projectData.style_selection || {};
+  $('styleRecommendation').textContent = selection.mode === 'auto'
+    ? `系统推荐：${selection.style_name || App.projectData.style}。理由：${selection.reason || '根据题材自动匹配'}。请在十种风格中确认或改选。`
+    : `风格来源：${selection.mode === 'user' ? '用户显式选择' : '旧项目默认配置'}。`;
+  initStyleCards();
+
+  // Render & Hand sync
+  const rp = App.projectData.renderer_profile || {};
+  $('ren_ink_path').value = rp.ink_path || 'skeleton';
+  $('ren_color_fill').value = rp.color_fill || 'local-brush';
+  $('ren_stroke_planner').value = rp.stroke_planner || 'semantic-v2';
+  $('ren_draw_mode').value = rp.draw_mode || 'layered';
+  $('ren_hand_mode').value = rp.hand_mode || 'small-hand';
+}
+
+function initSceneDropdown() {
+  const sel = $('sceneSel');
+  const options = App.scenes.map((s, i) => {
+    const option = document.createElement('option');
+    option.value = String(i);
+    option.textContent = `${i + 1}. ${s.id} - ${s.title}`;
+    return option;
+  });
+  sel.replaceChildren(...options);
+  sel.disabled = $('prevBtn').disabled = $('nextBtn').disabled = false;
+  $('emptyHint').hidden = true;
+  $('previewStack').hidden = false;
+  $('sidePanel').hidden = false;
+  $('proxyNotice').hidden = false;
+  $('playBtn').disabled = $('timelineSlider').disabled = false;
+  $('realPreviewBtn').disabled = false;
+  $('preparePlanBtn').disabled = !serverProject;
+}
+
+$('sceneSel').addEventListener('change', e => loadScene(+e.target.value));
+$('prevBtn').addEventListener('click', () => loadScene(App.activeSceneIdx - 1));
+$('nextBtn').addEventListener('click', () => loadScene(App.activeSceneIdx + 1));
+
+function loadScene(idx) {
+  if (idx < 0 || idx >= App.scenes.length) return;
+  pause();
+  App.activeSceneIdx = idx;
+  updateHistoryButtons();
+  App.selectedElemIdx = 0;
+  App.time = 0;
+  App.proxyPlaybackActive = false;
+  $('sceneSel').value = idx;
+  hideRealPreview();
+  syncPlaybackControls();
+
+  const sc = App.scenes[idx];
+  App.currentImg = null;
+  const img = new Image();
+  if (sc.imgUrl) {
+    App.sceneImageStates[sc.id] = 'loading';
+    renderCanvas();
+    checkDirtyAndDiff();
+  }
+  img.onload = () => {
+    App.sceneImageStates[sc.id] = 'loaded';
+    App.currentImg = img;
+    if (!sc.annData.canvas || !sc.annData.canvas.width) {
+      sc.annData.canvas = { width: img.naturalWidth, height: img.naturalHeight };
+    }
+    samplePaperColor(img);
+    syncSceneFields();
+    renderElementList();
+    renderAnimationTab();
+    renderCanvas();
+    renderTimelineTab();
+    checkDirtyAndDiff();
+  };
+  img.onerror = () => {
+    App.sceneImageStates[sc.id] = 'error';
+    App.currentImg = null;
+    syncSceneFields();
+    renderElementList();
+    renderAnimationTab();
+    renderCanvas();
+    renderTimelineTab();
+    checkDirtyAndDiff();
+    toast(`${sc.id} 的整板图加载失败；编辑仍可保存，真实预览需先恢复图片。`, 'err');
+  };
+  if (sc.imgUrl) img.src = sc.imgUrl;
+  else {
+    App.sceneImageStates[sc.id] = 'missing';
+    App.currentImg = null;
+    syncSceneFields();
+    renderElementList();
+    renderAnimationTab();
+    renderCanvas();
+    renderTimelineTab();
+  }
+}
+
+function samplePaperColor(img) {
+  try {
+    const t = document.createElement('canvas');
+    t.width = img.naturalWidth; t.height = img.naturalHeight;
+    const tc = t.getContext('2d');
+    tc.drawImage(img, 0, 0);
+    const pts = [[2,2], [t.width-3, 2], [2, t.height-3], [t.width-3, t.height-3]];
+    let r=0, g=0, b=0;
+    pts.forEach(([x, y]) => {
+      const d = tc.getImageData(x, y, 1, 1).data;
+      r += d[0]; g += d[1]; b += d[2];
+    });
+    App.paperColor = `rgb(${Math.round(r/4)},${Math.round(g/4)},${Math.round(b/4)})`;
+    $('canvas').style.background = App.paperColor;
+  } catch (e) {
+    App.paperColor = '#fdf0d0';
+  }
+}
+
+function reconcileProjectSemanticIds() {
+  App.semanticStructureMismatches = [];
+  for (const sc of App.scenes || []) {
+    const used = new Set();
+    for (const element of sc.annData?.elements || []) {
+      if (!element.id || used.has(String(element.id))) element.id = 'object-' + crypto.randomUUID();
+      element.id = String(element.id);
+      element.sourceElementIds = [element.id];
+      used.add(element.id);
+    }
+  }
+}
+
+function syncProjectStoryboardFromAnnotations() {
+  if (App.mode !== 'project') return [];
+  const changed = [];
+  for (const sc of App.scenes || []) {
+    const shot = App.storyboardData?.scenes?.find(item => item.id === sc.id);
+    if (!shot) continue;
+    const old = new Map((shot.elements || []).map(item => [String(item.id), item]));
+    const next = (sc.annData.elements || []).map(element => ({
+      ...(old.get(element.id) || {}), id: element.id,
+      label: element.label || '', role: element.narrativeRole || old.get(element.id)?.role || '',
+      trigger_text: element.triggerText ?? old.get(element.id)?.trigger_text ?? ''
+    }));
+    // Sorting is a drawing-order edit, not a change to spoken semantics.
+    const byId = rows => [...rows].sort((a,b) => String(a.id).localeCompare(String(b.id)));
+    if (canonicalJson(byId(next)) !== canonicalJson(byId(shot.elements || []))) {
+      shot.elements = next;
+      changed.push(sc.id);
+    }
+  }
+  return changed;
+}
+
+function updateSemanticStructureControls() {
+  const add = $('addBtn');
+  const del = $('delBtn');
+  if (!add || !del) return;
+  add.disabled = !App.scenes.length;
+  add.textContent = '＋ 新增区域';
+  add.title = '新增一个标注区域；保存时自动同步分镜语义';
+  const scene = App.scenes[App.activeSceneIdx];
+  const elements = scene?.annData?.elements || [];
+  del.disabled = App.selectedElemIdx < 0 || App.selectedElemIdx >= elements.length;
+  del.title = '删除当前选中的标注区域；保存时自动同步分镜语义';
+}
+
+// Sync UI Fields with Active Scene
+function syncSceneFields() {
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const dp = sc.annData.drawingPlan || {};
+  $('dp_mode').value = dp.mode || 'layered';
+  $('dp_planner').value = dp.strokePlanner || 'semantic-v2';
+  $('dp_color_schedule').value = dp.colorSchedule || 'object-progressive-v1';
+  $('dp_pixel_ownership').value = 'semantic-masks-v1';
+  $('dp_ratio').value = dp.colorReserveRatio || 0.32;
+  $('dp_min_color').value = dp.minimumColorMs || 900;
+  syncElementEditor();
+}
+
+function syncElementEditor() {
+  const sc = App.scenes[App.activeSceneIdx];
+  const els = sc?.annData?.elements || [];
+  const el = els[App.selectedElemIdx];
+  const on = !!el;
+  ['f_sources', 'f_grouping', 'f_trigger'].forEach(id => { $(id).disabled = !on; $(id).value = ''; });
+
+  ['f_label', 'f_role', 'f_x', 'f_y', 'f_w', 'f_h', 'f_dir', 'f_start', 'f_end', 'f_sub_select'].forEach(id => $(id).disabled = !on);
+  $('f_dur').disabled = true;
+  $('delBtn').disabled = !on;
+  updateSemanticStructureControls();
+
+  if (!on) {
+    ['f_label', 'f_role', 'f_x', 'f_y', 'f_w', 'f_h', 'f_start', 'f_end', 'f_dur'].forEach(id => $(id).value = '');
+    $('f_sub_select').innerHTML = '<option>未选择模块</option>';
+    return;
+  }
+
+  $('f_label').value = el.label || '';
+  $('f_role').value = el.narrativeRole || '';
+  const planned = (App.storyboardData?.scenes || []).find(item => item.id === sc.id)?.elements || [];
+  const plannedIds = planned.map((item, index) => String(item.id || item.sequence || index + 1));
+  const fallbackId = plannedIds.includes(String(el.id || '')) ? String(el.id) : String(el.sequence || '');
+  $('f_sources').value = (el.sourceElementIds || [fallbackId]).join(',');
+  $('f_grouping').value = el.groupingReason || '';
+  $('f_trigger').value = el.triggerText || '';
+  $('f_x').value = Math.round(finiteNumber(el.region?.x, 0));
+  $('f_y').value = Math.round(finiteNumber(el.region?.y, 0));
+  $('f_w').value = Math.round(finiteNumber(el.region?.width, 1));
+  $('f_h').value = Math.round(finiteNumber(el.region?.height, 1));
+  $('f_dir').value = el.reveal?.direction || 'top_to_bottom';
+  const timing = sourceRevealTiming(el);
+  $('f_start').value = timing.startMs;
+  $('f_end').value = timing.startMs + timing.durationMs;
+  $('f_dur').value = timing.durationMs;
+
+  // Subtitle options from captions
+  const subs = App.captionsList.length ? App.captionsList : [{ text: el.subtitle || '默认字幕' }];
+  $('f_sub_select').innerHTML = `<option value="">（不指定或留空）</option>` + subs.map(s => `
+    <option value="${escapeHtml(s.text)}" ${s.text === el.subtitle ? 'selected' : ''}>${escapeHtml(s.text)}</option>
+  `).join('');
+}
+
+$('f_sub_select').addEventListener('change', e => {
+  const sc = App.scenes[App.activeSceneIdx];
+  const el = sc?.annData?.elements[App.selectedElemIdx];
+  if (!el) return;
+  el.subtitle = e.target.value;
+  checkDirtyAndDiff();
+  renderElementList();
+});
+
+// Apply Element Editor Changes
+function sceneDurationMs(sc) {
+  if (!sc) return 0;
+  const annotationDuration = finiteNumber(sc.annData?.sceneDurationMs, 0);
+  const projectDuration = finiteNumber(sc.endMs, 0) - finiteNumber(sc.startMs, 0);
+  return Math.max(1, annotationDuration > 0 ? annotationDuration : (projectDuration > 0 ? projectDuration : 6000));
+}
+
+function scenePlaybackDurationMs(sc) {
+  if (!sc) return 0;
+  const index = App.scenes.findIndex(item => item.id === sc.id);
+  const end = index >= 0 && index + 1 < App.scenes.length ? Number(App.scenes[index + 1].startMs)
+    : Math.max(Number(sc.endMs || 0), Number(App.projectData?.audio_duration_ms || 0));
+  return Math.max(sceneDurationMs(sc), end - Number(sc.startMs || 0));
+}
+
+function syncHandPath(el) {
+  if (!el?.region) return;
+  const r = el.region;
+  const direction = el.reveal?.direction || 'top_to_bottom';
+  let start, end;
+  if (direction === 'bottom_to_top') {
+    start = [r.x + r.width / 2, r.y + r.height];
+    end = [r.x + r.width / 2, r.y];
+  } else if (direction === 'left_to_right') {
+    start = [r.x, r.y + r.height / 2];
+    end = [r.x + r.width, r.y + r.height / 2];
+  } else if (direction === 'right_to_left') {
+    start = [r.x + r.width, r.y + r.height / 2];
+    end = [r.x, r.y + r.height / 2];
+  } else {
+    start = [r.x + r.width / 2, r.y];
+    end = [r.x + r.width / 2, r.y + r.height];
+  }
+  el.handPath = {
+    start: start.map(Math.round),
+    end: end.map(Math.round),
+    easing: 'easeInOut'
+  };
+}
+
+function applyElementEditor() {
+  enterEditMode();
+  const sc = App.scenes[App.activeSceneIdx];
+  const el = sc?.annData?.elements[App.selectedElemIdx];
+  if (!el) return;
+
+  el.label = $('f_label').value;
+  el.narrativeRole = $('f_role').value;
+  // Object identity/grouping belongs to the approved storyboard; region edits preserve it.
+  el.triggerText = $('f_trigger').value.trim();
+  el.region.x = +$('f_x').value || 0;
+  el.region.y = +$('f_y').value || 0;
+  el.region.width = +$('f_w').value || 0;
+  el.region.height = +$('f_h').value || 0;
+  el.reveal.direction = $('f_dir').value;
+  const start = Math.max(0, Math.round(+$('f_start').value || 0));
+  const end = Math.max(start + 50, Math.round(+$('f_end').value || 0));
+  el.reveal.startMs = start;
+  el.reveal.durationMs = end - start;
+  syncHandPath(el);
+  $('f_dur').value = el.reveal.durationMs;
+  $('f_end').value = end;
+
+  checkDirtyAndDiff();
+  renderElementList();
+  renderCanvas();
+  renderTimelineTab();
+}
+
+['f_label', 'f_role', 'f_sources', 'f_grouping', 'f_trigger', 'f_x', 'f_y', 'f_w', 'f_h', 'f_dir', 'f_start', 'f_end'].forEach(id => {
+  $(id).addEventListener('input', applyElementEditor);
+});
+
+// DrawingPlan change handlers
+['dp_mode', 'dp_planner', 'dp_color_schedule', 'dp_pixel_ownership', 'dp_ratio', 'dp_min_color'].forEach(id => {
+  $(id).addEventListener('change', () => {
+    enterEditMode();
+    const sc = App.scenes[App.activeSceneIdx];
+    if (!sc) return;
+    sc.annData.drawingPlan = {
+      version: 2,
+      mode: $('dp_mode').value,
+      strokePlanner: $('dp_planner').value,
+      colorSchedule: $('dp_color_schedule').value,
+      pixelOwnership: $('dp_pixel_ownership').value,
+      colorReserveRatio: parseFloat($('dp_ratio').value) || 0.32,
+      minimumColorMs: parseInt($('dp_min_color').value) || 900
+    };
+    checkDirtyAndDiff();
+  });
+});
+
+// Render Element List
+function renderElementList() {
+  const sc = App.scenes[App.activeSceneIdx];
+  const els = sc?.annData?.elements || [];
+  $('elemCount').textContent = `共 ${els.length} 个`;
+
+  $('elist').innerHTML = els.map((e, i) => `
+    <li draggable="true" data-i="${i}" class="${i === App.selectedElemIdx ? 'sel' : ''}">
+      <span class="grip">⋮⋮</span>
+      <span class="seq">#${i + 1}</span>
+      <span class="time">${(revealTiming(e).startMs/1000).toFixed(1)}s</span>
+      <span class="label">${escapeHtml(e.label || '未命名')}</span>
+    </li>
+  `).join('');
+
+  $('elist').querySelectorAll('li').forEach(li => {
+    const i = +li.dataset.i;
+    li.addEventListener('click', () => {
+      App.selectedElemIdx = i;
+      syncElementEditor();
+      renderElementList();
+      renderCanvas();
+    });
+    li.addEventListener('dragstart', ev => { App.dragRow = i; li.classList.add('dragging'); });
+    li.addEventListener('dragend', () => { li.classList.remove('dragging'); });
+    li.addEventListener('dragover', ev => { ev.preventDefault(); li.classList.add('over'); });
+    li.addEventListener('dragleave', () => { li.classList.remove('over'); });
+    li.addEventListener('drop', ev => {
+      ev.preventDefault();
+      li.classList.remove('over');
+      reorderElements(App.dragRow, i);
+    });
+  });
+}
+
+function reorderElements(from, to) {
+  enterEditMode();
+  const sc = App.scenes[App.activeSceneIdx];
+  const els = sc?.annData?.elements;
+  if (!els || from < 0 || to < 0 || from === to) return;
+  const [item] = els.splice(from, 1);
+  els.splice(to, 0, item);
+  els.forEach((e, i) => e.sequence = i + 1);
+  const duration = sceneDurationMs(sc);
+  const firstStart = Math.max(0, Math.min(...els.map(e => sourceRevealTiming(e).startMs)));
+  const totalDraw = els.reduce((sum, e) => sum + Math.max(50, sourceRevealTiming(e).durationMs), 0);
+  const gap = els.length > 1
+    ? Math.max(0, Math.min(150, Math.floor((duration - 400 - firstStart - totalDraw) / (els.length - 1))))
+    : 0;
+  let cursor = firstStart;
+  els.forEach(e => {
+    e.reveal.startMs = Math.round(cursor);
+    cursor += Math.max(50, Number(e.reveal.durationMs || 0)) + gap;
+  });
+  App.selectedElemIdx = to;
+  checkDirtyAndDiff();
+  syncElementEditor();
+  renderElementList();
+  renderCanvas();
+  renderTimelineTab();
+}
+
+// Initial placement is a convenience, not a constraint on editing or saving.
+function initialElementRegion(elements, W, H) {
+  const width = Math.max(1, Math.round(W * 0.27));
+  const height = Math.max(1, Math.round(H * 0.34));
+  let best = null, bestOverlap = Infinity;
+  for (let row = 0; row <= 8; row++) {
+    for (let col = 0; col <= 12; col++) {
+      const box = {x: Math.round(W * (0.05 + col * 0.63 / 12)),
+        y: Math.round(H * (0.07 + row * 0.38 / 8)), width, height};
+      const overlap = elements.reduce((sum, element) => {
+        const r = element.region || {};
+        const x = finiteNumber(r.x, 0), y = finiteNumber(r.y, 0);
+        const w = Math.max(0, finiteNumber(r.width, 0)), h = Math.max(0, finiteNumber(r.height, 0));
+        return sum + Math.max(0, Math.min(box.x + width, x + w) - Math.max(box.x, x))
+          * Math.max(0, Math.min(box.y + height, y + h) - Math.max(box.y, y));
+      }, 0);
+      if (overlap < bestOverlap) { best = box; bestOverlap = overlap; }
+      if (overlap === 0) return best;
+    }
+  }
+  return best;
+}
+
+// Add / Delete Element
+$('addBtn').addEventListener('click', () => {
+  enterEditMode();
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const els = sc.annData.elements;
+  const W = Math.max(1, finiteNumber(sc.annData.canvas?.width, 1920));
+  const H = Math.max(1, finiteNumber(sc.annData.canvas?.height, 1080));
+
+  const seq = els.length + 1;
+  const lastEnd = els.length ? Math.max(...els.map(e => {
+    const timing = revealTiming(e);
+    return timing.startMs + timing.durationMs;
+  })) : 200;
+  const nextStart = lastEnd + 100;
+  const available = sceneDurationMs(sc) - 400 - nextStart;
+
+
+  const newElement = {
+    id: 'object-' + crypto.randomUUID(),
+    label: `模块 ${seq}`,
+    sequence: seq,
+    narrativeRole: '主体',
+    subtitle: '',
+    region: initialElementRegion(els, W, H),
+    reveal: { direction: 'top_to_bottom', startMs: nextStart, durationMs: 1000, maskPaddingPx: 22, protectedRegions: [] }
+  };
+  syncHandPath(newElement);
+  els.push(newElement);
+  App.selectedElemIdx = els.length - 1;
+  checkDirtyAndDiff();
+  syncElementEditor();
+  renderElementList();
+  renderCanvas();
+  renderTimelineTab();
+});
+
+$('delBtn').addEventListener('click', () => {
+  enterEditMode();
+  const sc = App.scenes[App.activeSceneIdx];
+  const els = sc?.annData?.elements;
+  if (!els || App.selectedElemIdx < 0 || App.selectedElemIdx >= els.length) return;
+
+  els.splice(App.selectedElemIdx, 1);
+  els.forEach((e, i) => e.sequence = i + 1);
+  App.selectedElemIdx = Math.max(0, App.selectedElemIdx - 1);
+  checkDirtyAndDiff();
+  syncElementEditor();
+  renderElementList();
+  renderCanvas();
+  renderTimelineTab();
+});
+
+// Canvas Drawing & Proxy Reveal
+const canvas = $('canvas'), ctx = canvas.getContext('2d');
+function elementProgress(element, timeMs) {
+  const timing = revealTiming(element);
+  const start = timing.startMs;
+  const duration = Math.max(1, timing.durationMs);
+  return clamp((timeMs - start) / duration, 0, 1);
+}
+
+function revealedRegion(element, progress) {
+  const r = element.region;
+  const direction = element.reveal?.direction || 'top_to_bottom';
+  if (direction === 'bottom_to_top') {
+    const height = r.height * progress;
+    return { x:r.x, y:r.y + r.height - height, width:r.width, height };
+  }
+  if (direction === 'left_to_right') {
+    return { x:r.x, y:r.y, width:r.width * progress, height:r.height };
+  }
+  if (direction === 'right_to_left') {
+    const width = r.width * progress;
+    return { x:r.x + r.width - width, y:r.y, width, height:r.height };
+  }
+  return { x:r.x, y:r.y, width:r.width, height:r.height * progress };
+}
+
+function drawProxyTip(element, progress) {
+  if (progress <= 0 || progress >= 1) return;
+  const r = element.region;
+  const direction = element.reveal?.direction || 'top_to_bottom';
+  let x = r.x + r.width / 2, y = r.y + r.height * progress;
+  if (direction === 'bottom_to_top') y = r.y + r.height * (1 - progress);
+  if (direction === 'left_to_right') { x = r.x + r.width * progress; y = r.y + r.height / 2; }
+  if (direction === 'right_to_left') { x = r.x + r.width * (1 - progress); y = r.y + r.height / 2; }
+  ctx.save();
+  ctx.fillStyle = '#2563eb';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(x, y, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function currentCaption(sc) {
+  const absoluteMs = Number(sc.startMs || 0) + App.time;
+  return App.captionsList.find(c => absoluteMs >= c.startMs && absoluteMs < c.endMs) || null;
+}
+
+function drawSubtitleAndSafeArea(sc, W, H) {
+  const safeTop = Math.round(H * 0.84);
+  if (!App.proxyPlaybackActive) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(239,68,68,.65)';
+    ctx.setLineDash([12, 8]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, safeTop);
+    ctx.lineTo(W, safeTop);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(127,29,29,.82)';
+    ctx.fillRect(12, safeTop + 8, 150, 32);
+    ctx.fillStyle = '#fee2e2';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('字幕安全区', 24, safeTop + 24);
+    ctx.restore();
+    return;
+  }
+  const caption = currentCaption(sc);
+  if (!caption?.text) return;
+  ctx.save();
+  const fontSize = Math.max(24, Math.round(H * 0.043));
+  ctx.font = `600 ${fontSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const y = safeTop + (H - safeTop) / 2;
+  const width = Math.min(W * 0.9, ctx.measureText(caption.text).width + 56);
+  ctx.fillStyle = 'rgba(0,0,0,.68)';
+  ctx.fillRect((W - width) / 2, y - fontSize * .85, width, fontSize * 1.7);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(caption.text, W / 2, y);
+  ctx.restore();
+}
+
+function renderCanvas() {
+  const ownershipNote = $('ownershipReview');
+  if (ownershipNote) {
+    const sid = App.scenes[App.activeSceneIdx]?.id;
+    const notes = App.animationPlanData?.ownershipReview?.[sid]?.warnings || [];
+    ownershipNote.textContent = App.dirty
+      ? '当前是编辑草稿；保存并准备后，顺序预览显示实际像素选区。'
+      : (notes.length ? notes.join('；') + '。可调整，也可确认按现状渲染。' : '顺序预览使用已准备的像素选区；画面疑点可按现状确认。');
+  }
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const W = sc.annData.canvas.width || 1920, H = sc.annData.canvas.height || 1080;
+  canvas.width = W; canvas.height = H;
+
+  ctx.fillStyle = App.paperColor;
+  ctx.fillRect(0, 0, W, H);
+
+  const imageState = App.sceneImageStates[sc.id];
+  if (!App.currentImg && ['missing', 'error', 'loading'].includes(imageState)) {
+    ctx.save();
+    ctx.fillStyle = imageState === 'loading' ? '#475569' : '#b91c1c';
+    ctx.font = `600 ${Math.max(24, Math.round(H * .035))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const message = imageState === 'loading'
+      ? '正在加载整板图…'
+      : (imageState === 'missing' ? '整板图未登记；编辑可以保存' : '整板图加载失败；编辑可以保存');
+    ctx.fillText(message, W / 2, H / 2);
+    ctx.restore();
+    return;
+  }
+
+  if (App.currentImg && !App.proxyPlaybackActive) {
+    ctx.drawImage(App.currentImg, 0, 0, W, H);
+  } else if (App.currentImg) {
+    (sc.annData.elements || []).forEach(element => {
+      const progress = elementProgress(element, App.time);
+      if (progress <= 0) return;
+      const rr = revealedRegion(element, progress);
+      if (rr.width <= 0 || rr.height <= 0) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(rr.x, rr.y, rr.width, rr.height);
+      ctx.clip();
+      const pixelMask = App.animationPlanData?.objectMasks?.[sc.id]?.[String(element.id)];
+      if (pixelMask && !App.dirty) {
+        ctx.beginPath();
+        for (const [y, left, right] of pixelMask.runs) ctx.rect(left, y, right-left, 1);
+        ctx.clip();
+      }
+      // Exclude the union of protected rectangles without toggling overlapping holes.
+      for (const region of element.reveal?.protectedRegions || []) {
+        ctx.beginPath();
+        ctx.rect(0, 0, W, H);
+        ctx.rect(region.x, region.y, region.width, region.height);
+        ctx.clip('evenodd');
+      }
+      ctx.drawImage(App.currentImg, 0, 0, W, H);
+      ctx.restore();
+    });
+    const active = (sc.annData.elements || []).find(element => {
+      const p = elementProgress(element, App.time);
+      return p > 0 && p < 1;
+    });
+    if (active) drawProxyTip(active, elementProgress(active, App.time));
+  }
+
+  // Draw overlay bounding boxes
+  const els = sc.annData.elements || [];
+  if (!App.proxyPlaybackActive) els.forEach((e, i) => {
+    const r = e.region;
+    const focus = i === App.selectedElemIdx;
+    ctx.save();
+    ctx.strokeStyle = focus ? '#3b82f6' : '#f59e0b';
+    ctx.fillStyle = focus ? 'rgba(59,130,246,.15)' : 'rgba(245,158,11,.08)';
+    ctx.lineWidth = focus ? 4 : 2;
+    if (!focus) ctx.setLineDash([8, 6]);
+    ctx.fillRect(r.x, r.y, r.width, r.height);
+    ctx.strokeRect(r.x, r.y, r.width, r.height);
+    ctx.setLineDash([]);
+
+    // Sequence Badge
+    ctx.fillStyle = focus ? '#3b82f6' : '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(r.x + 18, r.y + 18, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, r.x + 18, r.y + 18);
+
+    // 8 Resize Handles on Focus
+    if (focus) {
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 3;
+      const handles = getHandles(r);
+      Object.values(handles).forEach(([hx, hy]) => {
+        ctx.fillRect(hx - 8, hy - 8, 16, 16);
+        ctx.strokeRect(hx - 8, hy - 8, 16, 16);
+      });
+    }
+    ctx.restore();
+  });
+  drawSubtitleAndSafeArea(sc, W, H);
+}
+
+function getHandles(r) {
+  return {
+    tl: [r.x, r.y],
+    t: [r.x + r.width/2, r.y],
+    tr: [r.x + r.width, r.y],
+    r: [r.x + r.width, r.y + r.height/2],
+    br: [r.x + r.width, r.y + r.height],
+    b: [r.x + r.width/2, r.y + r.height],
+    bl: [r.x, r.y + r.height],
+    l: [r.x, r.y + r.height/2]
+  };
+}
+
+// Canvas Drag & Resize Interaction
+function getCanvasPt(evt) {
+  const b = canvas.getBoundingClientRect();
+  return {
+    x: (evt.clientX - b.left) * canvas.width / b.width,
+    y: (evt.clientY - b.top) * canvas.height / b.height
+  };
+}
+
+function findHandleAt(pt, r) {
+  for (const [name, [hx, hy]] of Object.entries(getHandles(r))) {
+    if (Math.abs(pt.x - hx) <= 14 && Math.abs(pt.y - hy) <= 14) return name;
+  }
+  return null;
+}
+
+canvas.addEventListener('pointerdown', evt => {
+  enterEditMode();
+  const sc = App.scenes[App.activeSceneIdx];
+  const els = sc?.annData?.elements || [];
+  const pt = getCanvasPt(evt);
+
+  for (let i = els.length - 1; i >= 0; i--) {
+    const r = els[i].region;
+    if (pt.x >= r.x - 12 && pt.x <= r.x + r.width + 12 && pt.y >= r.y - 12 && pt.y <= r.y + r.height + 12) {
+      App.selectedElemIdx = i;
+      const h = findHandleAt(pt, r) || 'move';
+      App.drag = { handle: h, startPt: pt, rect: { ...r } };
+      canvas.setPointerCapture(evt.pointerId);
+      syncElementEditor();
+      renderElementList();
+      renderCanvas();
+      return;
+    }
+  }
+});
+
+canvas.addEventListener('pointermove', evt => {
+  if (!App.drag) return;
+  const sc = App.scenes[App.activeSceneIdx];
+  const el = sc?.annData?.elements[App.selectedElemIdx];
+  if (!el) return;
+
+  const pt = getCanvasPt(evt);
+  const base = App.drag.rect;
+  const dx = pt.x - App.drag.startPt.x, dy = pt.y - App.drag.startPt.y;
+  const min = 0;
+
+  if (App.drag.handle === 'move') {
+    el.region.x = Math.round(base.x + dx);
+    el.region.y = Math.round(base.y + dy);
+  } else {
+    let left = base.x, right = base.x + base.width, top = base.y, bottom = base.y + base.height;
+    if (App.drag.handle.includes('l')) left = Math.min(base.x + dx, right - min);
+    if (App.drag.handle.includes('r')) right = Math.max(base.x + base.width + dx, left + min);
+    if (App.drag.handle.includes('t')) top = Math.min(base.y + dy, bottom - min);
+    if (App.drag.handle.includes('b')) bottom = Math.max(base.y + base.height + dy, top + min);
+    el.region.x = Math.round(left);
+    el.region.y = Math.round(top);
+    el.region.width = Math.round(right - left);
+    el.region.height = Math.round(bottom - top);
+  }
+  syncHandPath(el);
+
+  syncElementEditor();
+  checkDirtyAndDiff();
+  renderCanvas();
+  renderTimelineTab();
+});
+
+canvas.addEventListener('pointerup', () => { App.drag = null; checkDirtyAndDiff(); });
+canvas.addEventListener('pointercancel', () => { App.drag = null; checkDirtyAndDiff(); });
+
+// Style Switch Card Handler
+let targetStyleIdToConfirm = null;
+function onSelectStyleCard(styleId) {
+  if (styleId === App.projectData?.style_id) return;
+  targetStyleIdToConfirm = styleId;
+  $('styleAcknowledge').checked = false;
+  $('styleConfirmBtn').disabled = true;
+  $('styleModal').classList.add('show');
+}
+
+$('styleAcknowledge').addEventListener('change', e => {
+  $('styleConfirmBtn').disabled = !e.target.checked;
+});
+$('styleCancelBtn').addEventListener('click', () => {
+  $('styleModal').classList.remove('show');
+});
+$('styleConfirmBtn').addEventListener('click', () => {
+  enterEditMode();
+  if (!targetStyleIdToConfirm) return;
+  const targetStyle = (STYLE_REGISTRY.styles || []).find(s => s.id === targetStyleIdToConfirm);
+  if (targetStyle) {
+    App.projectData.style_id = targetStyle.id;
+    App.projectData.style = targetStyle.name;
+    App.projectData.renderer_profile = { ...targetStyle.renderer };
+    App.projectData.style_selection = {
+      mode: 'user',
+      style_id: targetStyle.id,
+      style_name: targetStyle.name,
+      reason: '用户在编排工作台显式选择',
+      matched_keywords: [],
+      candidates: [targetStyle.id],
+      requires_confirmation: false
+    };
+    initProjectHeader();
+    checkDirtyAndDiff();
+    toast(`已切换至风格：${targetStyle.name}`, 'succ');
+  }
+  $('styleModal').classList.remove('show');
+});
+
+// Render Tab handlers
+['ren_ink_path', 'ren_color_fill', 'ren_stroke_planner', 'ren_draw_mode', 'ren_hand_mode'].forEach(id => {
+  $(id).addEventListener('change', () => {
+    enterEditMode();
+    if (!App.projectData) return;
+    App.projectData.renderer_profile = App.projectData.renderer_profile || {};
+    App.projectData.renderer_profile.ink_path = $('ren_ink_path').value;
+    App.projectData.renderer_profile.color_fill = $('ren_color_fill').value;
+    App.projectData.renderer_profile.stroke_planner = $('ren_stroke_planner').value;
+    App.projectData.renderer_profile.draw_mode = $('ren_draw_mode').value;
+    App.projectData.renderer_profile.hand_mode = $('ren_hand_mode').value;
+    checkDirtyAndDiff();
+  });
+});
+
+// Real Safe Animation & Transition Editing
+function sceneStartFor(sc, animScene) {
+  return finiteNumber(animScene?.sceneStartMs ?? sc?.startMs, 0);
+}
+
+function sceneDurationFor(sc, animScene) {
+  const fromAnimation = Number(animScene?.sceneDurationMs);
+  if (Number.isFinite(fromAnimation) && fromAnimation > 0) return fromAnimation;
+  const fromProject = Number(sc?.endMs) - Number(sc?.startMs);
+  if (Number.isFinite(fromProject) && fromProject > 0) return fromProject;
+  const fromAnnotation = finiteNumber(sc?.annData?.sceneDurationMs, 0);
+  return fromAnnotation > 0 ? fromAnnotation : 6000;
+}
+
+function globalTransitionForScene(sceneId) {
+  return (App.animationPlanData?.transitions || []).find(t => t.fromSceneId === sceneId) || null;
+}
+
+function transitionForScene(animScene) {
+  return animScene?.transition || globalTransitionForScene(animScene?.sceneId) || null;
+}
+
+function removeGlobalTransition(sceneId) {
+  if (!App.animationPlanData || !Array.isArray(App.animationPlanData.transitions)) return;
+  App.animationPlanData.transitions = App.animationPlanData.transitions.filter(t => t.fromSceneId !== sceneId);
+}
+
+function sceneWordBounds(sc, nextSc) {
+  const words = App.wordsData?.words || [];
+  const current = words.filter(w => w.start_ms >= sc.startMs && w.end_ms <= sc.endMs);
+  const following = nextSc
+    ? words.filter(w => w.start_ms >= nextSc.startMs && w.end_ms <= nextSc.endMs)
+    : [];
+  return {
+    previousWordEndMs: current.length ? Math.max(...current.map(w => w.end_ms)) : null,
+    nextSceneFirstWordMs: following.length ? Math.min(...following.map(w => w.start_ms)) : null
+  };
+}
+
+function synchronizeTransitionCopies(animScene, sc, nextSc, localTimes) {
+  const sceneStart = sceneStartFor(sc, animScene);
+  const existing = transitionForScene(animScene) || {};
+  const bounds = sceneWordBounds(sc, nextSc);
+  const previousWordEndMs = bounds.previousWordEndMs ?? existing.previousWordEndMs ?? sceneStart;
+  const nextSceneFirstWordMs = bounds.nextSceneFirstWordMs ?? existing.nextSceneFirstWordMs ?? Number(sc.endMs);
+  const eraseStartMs = sceneStart + localTimes.eraseStartMs;
+  const eraseEndMs = sceneStart + localTimes.eraseEndMs;
+  const cleanCanvasStartMs = sceneStart + localTimes.cleanCanvasStartMs;
+  const cleanCanvasEndMs = sceneStart + localTimes.cleanCanvasEndMs;
+  const transition = {
+    ...existing,
+    fromSceneId: sc.id,
+    toSceneId: nextSc?.id || existing.toSceneId || '',
+    previousWordEndMs,
+    nextSceneFirstWordMs,
+    gapMs: nextSceneFirstWordMs - previousWordEndMs,
+    stableHoldMs: eraseStartMs - previousWordEndMs,
+    eraseStartMs,
+    eraseEndMs,
+    eraseDurationMs: eraseEndMs - eraseStartMs,
+    cleanCanvasStartMs,
+    cleanCanvasEndMs,
+    cleanCanvasMs: cleanCanvasEndMs - cleanCanvasStartMs,
+    status: 'ready'
+  };
+  animScene.transition = { ...transition };
+  if (!Array.isArray(App.animationPlanData.transitions)) App.animationPlanData.transitions = [];
+  const index = App.animationPlanData.transitions.findIndex(t => t.fromSceneId === sc.id);
+  if (index >= 0) App.animationPlanData.transitions[index] = { ...transition };
+  else App.animationPlanData.transitions.push({ ...transition });
+}
+
+function getOrCreateAnimScene(sid) {
+  if (!App.animationPlanData) App.animationPlanData = { version: 3, planVersion: "3.3", scenes: [] };
+  if (!Array.isArray(App.animationPlanData.scenes)) App.animationPlanData.scenes = [];
+  let sc = App.animationPlanData.scenes.find(s => s.sceneId === sid);
+  if (!sc) {
+    const projectScene = App.storyboardData?.scenes?.find(s => s.id === sid);
+    sc = {
+      sceneId: sid,
+      sceneStartMs: projectScene?.start_ms || 0,
+      sceneEndMs: projectScene?.end_ms || 6000,
+      sceneDurationMs: (projectScene?.end_ms - projectScene?.start_ms) || 6000,
+      events: [],
+      transition: null
+    };
+    App.animationPlanData.scenes.push(sc);
+  }
+  return sc;
+}
+
+function visualPlanShotsForScene(sid) {
+  return (App.visualPlanData?.shots || []).filter(shot => shot.section_id === sid);
+}
+
+function renderVisualPlanSummary(sid) {
+  const target = $('visualPlanSummary');
+  if (!target) return;
+  const shots = visualPlanShotsForScene(sid);
+  if (!shots.length) {
+    target.textContent = App.visualPlanData
+      ? 'visual-plan.json 中没有映射到本幕的镜头。'
+      : '当前项目没有 visual-plan.json；旧项目继续使用安全默认。';
+    return;
+  }
+  target.innerHTML = shots.map(shot => {
+    const beats = (shot.beats || []).map(beat =>
+      `${escapeHtml(beat.action || 'hold')} → ${escapeHtml(beat.target || '未命名目标')} (${Number(beat.start_ms || 0)}–${Number(beat.end_ms || 0)}ms)`
+    );
+    const assets = (shot.required_assets || []).map(escapeHtml);
+    return `<div style="margin-top:6px;line-height:1.7;">
+      <b>${escapeHtml(shot.shot_id || sid)}</b> · ${escapeHtml(shot.shot_type || '未指定')} · ${escapeHtml(shot.template || '未指定模板')} / ${escapeHtml(shot.composition || '未指定构图')}<br>
+      目的：${escapeHtml(shot.purpose || '未填写')}；真实口播窗口：${Number(shot.start_ms || 0)}–${Number(shot.end_ms || 0)}ms<br>
+      节拍：${beats.length ? beats.join('；') : '无'}${assets.length ? `<br>所需素材：${assets.join('、')}` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderAnimationTab() {
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const sid = sc.id;
+  const isFinalScene = (App.activeSceneIdx === App.scenes.length - 1);
+  const animScene = (App.animationPlanData?.scenes || []).find(s => s.sceneId === sid) || {
+    sceneId: sid,
+    events: [],
+    skipped: [],
+    transition: null
+  };
+  renderVisualPlanSummary(sid);
+  const evt = (animScene.events && animScene.events[0]) || {};
+  const skipped = (animScene.skipped && animScene.skipped[0]) || null;
+  const reservation = (App.animationPlanData?.timingReservations || []).find(item => item.sceneId === sid);
+
+  if (evt.effect) {
+    $('animScheduleStatus').textContent = `已安排效果：${evt.effect} → ${evt.targetElementId || '真实前景目标'}，时间 ${evt.startMs || 0}–${evt.endMs || 0}ms${reservation ? `；后动画窗口 ${reservation.reservedMs}ms；纹理与收尾缩短 ${reservation.originalDurationMs - reservation.durationMs}ms` : ''}`;
+  } else {
+    const reason = skipped?.fallback?.reason || '本幕没有满足语义、真实前景目标和口播内时间窗口的对象';
+    $('animScheduleStatus').textContent = `跳过原因：${reason}`;
+  }
+
+  $('anim_effect').value = evt.effect || 'skipped';
+  $('anim_goal').value = evt.semanticGoal || '';
+  $('anim_start').value = evt.startMs || 0;
+  $('anim_end').value = evt.endMs || 0;
+  $('anim_budget').value = evt.timeBudgetMs || 0;
+
+  // Target element dropdown
+  const els = sc.annData?.elements || [];
+  const targetOptions = els.map(e => {
+    const option = document.createElement('option');
+    option.value = String(e.id || '');
+    option.textContent = `${e.label || '未命名'} (${e.id || '无ID'})`;
+    return option;
+  });
+  $('anim_target_elem').replaceChildren(...targetOptions);
+  if (evt.targetElementId) $('anim_target_elem').value = evt.targetElementId;
+
+  // Transition fields
+  if (isFinalScene) {
+    $('transSceneTip').textContent = '⚠️ 最后一幕不进行板擦转场，收手后画面完整停留。';
+    $('trans_enable').checked = false;
+    $('trans_enable').disabled = true;
+    ['trans_erase_start', 'trans_erase_end', 'trans_clean_start', 'trans_clean_end'].forEach(id => { $(id).disabled = true; $(id).value = ''; });
+    $('transPauseInfo').textContent = '';
+  } else {
+    $('trans_enable').disabled = false;
+    ['trans_erase_start', 'trans_erase_end', 'trans_clean_start', 'trans_clean_end'].forEach(id => $(id).disabled = false);
+    const trans = transitionForScene(animScene);
+    $('trans_enable').checked = !!trans;
+    if (trans) {
+      const sceneStart = sceneStartFor(sc, animScene);
+      $('trans_erase_start').value = (trans.eraseStartMs || 0) - sceneStart;
+      $('trans_erase_end').value = (trans.eraseEndMs || 0) - sceneStart;
+      $('trans_clean_start').value = (trans.cleanCanvasStartMs || 0) - sceneStart;
+      $('trans_clean_end').value = (trans.cleanCanvasEndMs || 0) - sceneStart;
+    } else {
+      $('trans_erase_start').value = '';
+      $('trans_erase_end').value = '';
+      $('trans_clean_start').value = '';
+      $('trans_clean_end').value = '';
+    }
+    // Calculate silence pause between scenes
+    const nextSc = App.scenes[App.activeSceneIdx + 1];
+    const pauseMs = (nextSc && App.wordsData?.words) ? calculatePauseBudget(sc, nextSc, App.wordsData.words) : null;
+    if (pauseMs !== null) {
+      $('transPauseInfo').innerHTML = `真实口播气口：<b style="color:${pauseMs >= MIN_TRANSITION_GAP_MS ? 'var(--success)' : 'var(--danger)'};">${pauseMs}ms</b>（转场动作最多约 500ms）`;
+    } else {
+      $('transPauseInfo').textContent = '';
+    }
+  }
+}
+
+function applyAnimationChanges() {
+  enterEditMode();
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const sid = sc.id;
+  const animScene = getOrCreateAnimScene(sid);
+  const existingEvent = (animScene.events && animScene.events[0]) || null;
+  const effect = $('anim_effect').value;
+  const targetId = $('anim_target_elem').value;
+  const goal = $('anim_goal').value.trim();
+  const start = parseInt($('anim_start').value, 10) || 0;
+  const end = parseInt($('anim_end').value, 10) || 0;
+  const budget = parseInt($('anim_budget').value, 10) || (end - start);
+
+  const targetElem = (sc.annData.elements || []).find(e => e.id === targetId) || (sc.annData.elements || [])[0];
+  const targetLabel = targetElem?.label || targetId;
+  const canvasW = sc.annData.canvas?.width || 1920;
+  const canvasH = sc.annData.canvas?.height || 1080;
+
+  if (effect === 'skipped') {
+    animScene.events = [];
+    animScene.skipped = [{
+      sceneId: sid,
+      targetElementId: targetId,
+      semanticIntent: "conclusion",
+      semanticGoal: goal || "保持稳定画面",
+      fallback: {
+        from: "panel-safe-animation",
+        to: "skip",
+        reason: goal || "没有足够语义或时间，保持稳定画面"
+      }
+    }];
+  } else if (
+    !existingEvent
+    || existingEvent.targetElementId !== targetId
+    || existingEvent.focusTarget?.source !== 'foreground-pixels'
+    || Number(existingEvent.focusTarget?.confidence || 0) <= 0
+  ) {
+    animScene.events = [];
+    animScene.skipped = [{
+      sceneId: sid,
+      targetElementId: targetId,
+      semanticIntent: 'manual-review-required',
+      semanticGoal: goal || '等待真实前景像素分析',
+      fallback: {
+        from: 'panel-safe-animation',
+        to: 'skip',
+        reason: '工作台不能凭 annotation 矩形伪造前景像素置信度；请重新生成 animation-plan.json 后再调整时间。'
+      }
+    }];
+    toast('已安全降级：目标缺少渲染器生成的真实前景像素证据，未创建动画。', 'err');
+  } else {
+    animScene.skipped = [];
+    const phase = effect === 'focus-push' ? {
+      prepare: { startMs: start, endMs: start + 100 },
+      camera: { startMs: start + 100, endMs: Math.max(start + 500, end - 330) },
+      hold: { startMs: Math.max(start + 500, end - 330), endMs: end - 80 },
+      leave: { startMs: end - 80, endMs: end }
+    } : {
+      prepare: { startMs: start, endMs: start + 100 },
+      accent: { startMs: start + 100, endMs: Math.max(start + 500, end - 330) },
+      hold: { startMs: Math.max(start + 500, end - 330), endMs: end - 80 },
+      leave: { startMs: end - 80, endMs: end }
+    };
+
+    animScene.events = [{
+      targetElementId: targetId,
+      effect: effect,
+      semanticIntent: "conclusion",
+      semanticGoal: goal || "提示已经完整绘制的核心结论",
+      startState: `${targetLabel} 已完整绘制`,
+      action: effect === 'focus-push' ? "缓慢推近聚焦" : "沿真实前景轮廓做语义强调",
+      endState: "强调结束后恢复稳定画面",
+      staticAnchors: [],
+      focusTarget: JSON.parse(JSON.stringify(existingEvent.focusTarget)),
+      startMs: start,
+      endMs: end,
+      persistUntilMs: end + 250,
+      timeBudgetMs: budget,
+      phase: phase,
+      fallbackPolicy: "stable-hold",
+      targetMaskSource: existingEvent.targetMaskSource,
+      effectOptions: {
+        preserveOriginalPixels: true,
+        inventGeometry: false
+      },
+      style: {
+        colorSource: `style-registry:${App.projectData?.style_id || 'warm-pencil'}.gesture_colors`,
+        colorHex: "#8A6A52"
+      },
+      handBehavior: {
+        mode: "small-hand",
+        hideDuringCamera: effect === 'focus-push',
+        showHandForEffect: false
+      },
+      auxiliary: false
+    }];
+  }
+
+  // Transition
+  const isFinalScene = (App.activeSceneIdx === App.scenes.length - 1);
+  if (isFinalScene || !$('trans_enable').checked) {
+    animScene.transition = null;
+    removeGlobalTransition(sid);
+  } else {
+    const nextSc = App.scenes[App.activeSceneIdx + 1];
+    synchronizeTransitionCopies(animScene, sc, nextSc, {
+      eraseStartMs: parseInt($('trans_erase_start').value, 10) || 0,
+      eraseEndMs: parseInt($('trans_erase_end').value, 10) || 0,
+      cleanCanvasStartMs: parseInt($('trans_clean_start').value, 10) || 0,
+      cleanCanvasEndMs: parseInt($('trans_clean_end').value, 10) || 0
+    });
+  }
+
+  checkDirtyAndDiff();
+  renderTimelineTab();
+}
+
+['anim_effect', 'anim_target_elem', 'anim_goal', 'anim_start', 'anim_end', 'anim_budget', 'trans_enable', 'trans_erase_start', 'trans_erase_end', 'trans_clean_start', 'trans_clean_end'].forEach(id => {
+  $(id).addEventListener('input', applyAnimationChanges);
+  $(id).addEventListener('change', applyAnimationChanges);
+});
+
+function calculatePauseBudget(sc1, sc2, words) {
+  const w1 = words.filter(w => w.start_ms >= sc1.startMs && w.end_ms <= sc1.endMs);
+  const w2 = words.filter(w => w.start_ms >= sc2.startMs && w.end_ms <= sc2.endMs);
+  if (!w1.length || !w2.length) return 1000;
+  const lastEnd = Math.max(...w1.map(w => w.end_ms));
+  const nextStart = Math.min(...w2.map(w => w.start_ms));
+  return Math.max(0, nextStart - lastEnd);
+}
+
+// Tab 2: Six-Track Timeline View
+function renderTimelineTab() {
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const dur = sceneDurationMs(sc);
+
+  // 1. Words track (Read-only)
+  const sceneStart = finiteNumber(sc.startMs, 0);
+  const sceneEnd = sceneStart + dur;
+  const words = (App.wordsData?.words || []).filter(w => {
+    const start = Number(w.start_ms);
+    const end = Number(w.end_ms);
+    return Number.isFinite(start) && Number.isFinite(end) && start >= sceneStart && end <= sceneEnd;
+  });
+  $('trackWords').innerHTML = words.map(w => {
+    const start = finiteNumber(w.start_ms, sceneStart);
+    const end = finiteNumber(w.end_ms, start);
+    const left = ((start - sceneStart) / dur * 100).toFixed(1);
+    const width = Math.max(2, ((end - start) / dur * 100)).toFixed(1);
+    return `<div class="track-pill pill-word" data-time="${Math.max(0, start - sceneStart)}" style="left:${left}%;width:${width}%;">${escapeHtml(w.text)}</div>`;
+  }).join('');
+
+  // 2. Captions track (Read-only)
+  const caps = (App.captionsList || []).filter(c => Number.isFinite(Number(c.startMs)) && Number.isFinite(Number(c.endMs)) && Number(c.endMs) >= sceneStart && Number(c.startMs) <= sceneEnd);
+  $('trackCaptions').innerHTML = caps.map(c => {
+    const s = Math.max(0, finiteNumber(c.startMs, sceneStart) - sceneStart);
+    const e = Math.min(dur, finiteNumber(c.endMs, sceneStart) - sceneStart);
+    const left = (s / dur * 100).toFixed(1);
+    const width = Math.max(3, ((e - s) / dur * 100)).toFixed(1);
+    return `<div class="track-pill pill-caption" data-time="${s}" style="left:${left}%;width:${width}%;">${escapeHtml(c.text)}</div>`;
+  }).join('');
+
+  // 3. Elements reveal track
+  const els = sc.annData?.elements || [];
+  const timedElements = els.map((element, index) => ({ element, index, ...revealTiming(element) }));
+  $('trackElements').innerHTML = timedElements.map(item => {
+    const left = (item.startMs / dur * 100).toFixed(1);
+    const width = Math.max(2, (item.durationMs / dur * 100)).toFixed(1);
+    return `<div class="track-pill pill-element" data-time="${item.startMs}" data-element-index="${item.index}" style="left:${left}%;width:${width}%;">#${item.index+1} ${escapeHtml(item.element.label)}</div>`;
+  }).join('');
+
+  // 4. Color Wash & Scene Final Hold track
+  const lastElement = timedElements.length ? timedElements.reduce((best, item) => (
+    item.startMs + item.durationMs > best.startMs + best.durationMs ? item : best
+  )) : null;
+  const lastEnd = lastElement ? lastElement.startMs + lastElement.durationMs : 0;
+  const finalHold = Math.max(0, dur - lastEnd);
+  const dp = sc.annData.drawingPlan || {};
+  const isLayered = dp.mode !== 'legacy';
+  let washHtml = '';
+  if (isLayered && lastEnd > 0) {
+    const ratio = clamp(dp.colorReserveRatio || 0.32, 0.18, 0.45);
+    const schedule = dp.colorSchedule || 'object-progressive-v1';
+    if (schedule === 'object-progressive-v1') {
+      timedElements.forEach(item => {
+        const row = savedDrawingBudget(item.element);
+        const budget = row?.frameBudget;
+        if (!budget || budget.policy !== 'protected-phases-v1') {
+          washHtml += `<span class="muted">对象${item.index + 1}预算待保存或重建</span>`;
+          return;
+        }
+        const phases = budget.phases;
+        const washStart = (budget.startFrame + phases.recognition) * 1000 / budget.fps;
+        const washMs = phases.base_color * 1000 / budget.fps;
+        const washLeft = (washStart / dur * 100).toFixed(1);
+        const washWidth = (washMs / dur * 100).toFixed(1);
+        washHtml += `<div class="track-pill pill-wash" data-time="${washStart}" data-element-index="${item.index}" style="left:${washLeft}%;width:${washWidth}%;">🎨 对象${item.index+1}基础色 ${phases.base_color}帧 / ${budget.fps}fps</div>`;
+      });
+    } else {
+      const requestedWash = Math.max(dp.minimumColorMs || 900, Math.round(lastElement.durationMs * ratio));
+      const washMs = Math.min(lastElement.durationMs, requestedWash);
+      const washLeft = ((lastEnd - washMs) / dur * 100).toFixed(1);
+      const washWidth = (washMs / dur * 100).toFixed(1);
+      washHtml += `<div class="track-pill pill-wash" data-time="${Math.max(0, lastEnd - washMs)}" style="left:${washLeft}%;width:${washWidth}%;">🎨 旧版整幕上色 ${washMs}ms</div>`;
+    }
+  }
+  if (dur > lastEnd) {
+    const holdLeft = (lastEnd / dur * 100).toFixed(1);
+    const holdWidth = (finalHold / dur * 100).toFixed(1);
+    const holdClass = finalHold >= 400 ? 'pill-hold' : 'pill-hold short';
+    washHtml += `<div class="track-pill ${holdClass}" data-time="${lastEnd}" style="left:${holdLeft}%;width:${holdWidth}%;">⏸ 完整画面停留 ${finalHold}ms (${finalHold>=400?'合规':'不足400ms'})</div>`;
+  }
+  $('trackWash').innerHTML = washHtml;
+
+  // 5. Eraser Transition track
+  // 6. Eraser Transition track
+  const isFinalScene = (App.activeSceneIdx === App.scenes.length - 1);
+  const animScene = App.animationPlanData?.scenes?.find(s => s.sceneId === sc.id);
+  const trans = transitionForScene(animScene);
+  if (isFinalScene) {
+    $('trackEraser').innerHTML = `<div class="muted" style="padding:4px 8px;">最后一幕（不设板擦转场）</div>`;
+  } else if (trans) {
+    const sceneStart = sceneStartFor(sc, animScene);
+    const eStart = (trans.eraseStartMs || 0) - sceneStart;
+    const eEnd = (trans.eraseEndMs || 0) - sceneStart;
+    const cStart = (trans.cleanCanvasStartMs || 0) - sceneStart;
+    const cEnd = (trans.cleanCanvasEndMs || 0) - sceneStart;
+    const eLeft = (eStart / dur * 100).toFixed(1);
+    const eWidth = Math.max(2, ((eEnd - eStart) / dur * 100)).toFixed(1);
+    const cLeft = (cStart / dur * 100).toFixed(1);
+    const cWidth = Math.max(2, ((cEnd - cStart) / dur * 100)).toFixed(1);
+    $('trackEraser').innerHTML = `
+      <div class="track-pill pill-eraser" data-time="${eStart}" style="left:${eLeft}%;width:${eWidth}%;">🧹 板擦 ${eEnd-eStart}ms</div>
+      <div class="track-pill pill-clean" data-time="${cStart}" style="left:${cLeft}%;width:${cWidth}%;">⬜ 净板 ${cEnd-cStart}ms</div>
+    `;
+  } else {
+    $('trackEraser').innerHTML = `<div class="muted" style="padding:4px 8px;">未启用板擦转场</div>`;
+  }
+
+  document.querySelectorAll('.track-pill[data-time]').forEach(pill => {
+    pill.addEventListener('click', () => {
+      pause();
+      hideRealPreview();
+      App.proxyPlaybackActive = true;
+      App.time = clamp(Number(pill.dataset.time || 0), 0, dur);
+      if (pill.dataset.elementIndex !== undefined) {
+        App.selectedElemIdx = Number(pill.dataset.elementIndex);
+        syncElementEditor();
+        renderElementList();
+      }
+      if (App.audio) App.audio.currentTime = (Number(sc.startMs || 0) + App.time) / 1000;
+      syncPlaybackControls();
+      renderCanvas();
+    });
+  });
+
+  // Live validations for active scene
+  const v = runValidations();
+  const { hasChanges, changeSet } = calculateChanges();
+  const gate = validationSaveGate(v, changeSet);
+  $('timelineCheckList').innerHTML = v.checks.map(c => {
+    const display = validationDisplayState(c, gate, hasChanges);
+    return `
+    <div class="check-item">
+      <span class="check-icon ${display.status}">${display.icon}</span>
+      <span><b>${escapeHtml(c.title)}</b>：${escapeHtml(display.msg)}</span>
+    </div>
+  `}).join('');
+}
+
+// Real Dynamic Validations across entire project
+function runValidations() {
+  const checks = [];
+  let allOk = true;
+
+  if (!App.scenes || !App.scenes.length) {
+    return { ok: true, checks: [] };
+  }
+
+  const missingBoardIds = [
+    ...(App.boardStatus?.missingImages || []),
+    ...(App.boardStatus?.missingAnnotations || [])
+  ];
+  const imageLoadErrors = Object.entries(App.sceneImageStates || {})
+    .filter(([sceneId, status]) => (
+      status === 'missing' || status === 'error'
+      || (sceneId === App.scenes[App.activeSceneIdx]?.id && status === 'loading')
+    ))
+    .map(([sceneId]) => sceneId);
+  const unavailableBoards = [...new Set([...missingBoardIds, ...imageLoadErrors])];
+  checks.push({
+    title: '整板图加载完整性',
+    saveScope: 'always',
+    sceneIds: unavailableBoards,
+    pass: unavailableBoards.length === 0,
+    msg: unavailableBoards.length
+      ? `这些场景没有可用整板图：${unavailableBoards.join('、')}`
+      : '所有场景均已登记整板图，当前访问状态正常'
+  });
+  if (unavailableBoards.length) allOk = false;
+
+  const semanticMismatchScenes = [...new Set(App.semanticStructureMismatches || [])];
+  checks.push({
+    title: '分镜语义结构同步',
+    saveScope: 'storyboard',
+    sceneIds: semanticMismatchScenes,
+    pass: true,
+    msg: semanticMismatchScenes.length
+      ? `${semanticMismatchScenes.join('、')} 的语义结构将在保存时由制作层自动同步`
+      : '工作台增删区域时，分镜语义结构由制作层自动同步'
+  });
+
+  // Check 1: Canvas bounds for all scenes
+  let outOfBounds = false;
+  let outOfBoundsDetail = '';
+  const outOfBoundsSceneIds = new Set();
+  App.scenes.forEach(sc => {
+    const rawW = Number(sc.annData.canvas?.width ?? 1920);
+    const rawH = Number(sc.annData.canvas?.height ?? 1080);
+    const W = finiteNumber(rawW, 1920);
+    const H = finiteNumber(rawH, 1080);
+    if (!Number.isFinite(rawW) || !Number.isFinite(rawH) || W <= 0 || H <= 0) {
+      outOfBounds = true;
+      outOfBoundsSceneIds.add(sc.id);
+      outOfBoundsDetail = `${sc.id} 的画布尺寸不是有效有限数值`;
+    }
+    (sc.annData.elements || []).forEach(e => {
+      const r = e.region || {};
+      const values = [r.x, r.y, r.width, r.height].map(Number);
+      const [x, y, width, height] = values.map((value, index) => finiteNumber(value, index < 2 ? 0 : 1));
+      if (!values.every(Number.isFinite) || width <= 0 || height <= 0 || x < 0 || y < 0 || x + width > W || y + height > H) {
+        outOfBounds = true;
+        outOfBoundsSceneIds.add(sc.id);
+        outOfBoundsDetail = `${sc.id} 中的 "${e.label}" 使用无效或越界区域 [${r.x},${r.y},${r.width},${r.height}] (画布 ${W}x${H})`;
+      }
+    });
+  });
+  checks.push({
+    title: '画布边界越界检查',
+    saveScope: 'annotation',
+    sceneIds: [...outOfBoundsSceneIds],
+    pass: !outOfBounds,
+    msg: outOfBounds ? outOfBoundsDetail : '所有场景元素均位于 16:9 画布安全区内'
+  });
+  if (outOfBounds) allOk = false;
+
+  // Check 2: Element time overlaps within same scene
+  let overlapFound = false;
+  let overlapDetail = '';
+  const overlapSceneIds = new Set();
+  App.scenes.forEach(sc => {
+    const sorted = [...(sc.annData.elements || [])];
+    let prevEnd = -1;
+    sorted.forEach(e => {
+      const timing = revealTiming(e);
+      const s = timing.startMs;
+      const ed = s + timing.durationMs;
+      if (prevEnd >= 0 && s < prevEnd) {
+        overlapFound = true;
+        overlapSceneIds.add(sc.id);
+        overlapDetail = `${sc.id} 中的 "${e.label}" (${s}ms) 与前一元素 (${prevEnd}ms) 发生时序重叠`;
+      }
+      prevEnd = Math.max(prevEnd, ed);
+    });
+  });
+  checks.push({
+    title: '元素绘制时序无重叠',
+    saveScope: 'annotation',
+    sceneIds: [...overlapSceneIds],
+    pass: !overlapFound,
+    msg: overlapFound ? overlapDetail : '所有场景绘制时序线性推进，无冲突'
+  });
+  if (overlapFound) allOk = false;
+
+  // Check 2b: Spatial overlaps are supported and resolved by exclusive pixel ownership.
+  let spatialOverlapFound = false;
+  let spatialOverlapDetail = '';
+  const intersection = (a, b) => {
+    const x0 = Math.max(finiteNumber(a?.x, 0), finiteNumber(b?.x, 0));
+    const y0 = Math.max(finiteNumber(a?.y, 0), finiteNumber(b?.y, 0));
+    const x1 = Math.min(finiteNumber(a?.x, 0) + finiteNumber(a?.width, 0), finiteNumber(b?.x, 0) + finiteNumber(b?.width, 0));
+    const y1 = Math.min(finiteNumber(a?.y, 0) + finiteNumber(a?.height, 0), finiteNumber(b?.y, 0) + finiteNumber(b?.height, 0));
+    return x1 > x0 && y1 > y0 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : null;
+  };
+  const isProtected = (element, overlap) => (element.reveal?.protectedRegions || []).some(r =>
+    finiteNumber(r.x, 0) <= overlap.x && finiteNumber(r.y, 0) <= overlap.y
+    && finiteNumber(r.x, 0) + finiteNumber(r.width, 0) >= overlap.x + overlap.width
+    && finiteNumber(r.y, 0) + finiteNumber(r.height, 0) >= overlap.y + overlap.height
+  );
+  App.scenes.forEach(sc => {
+    const elements = [...(sc.annData.elements || [])].sort((a, b) => finiteNumber(a.sequence, 0) - finiteNumber(b.sequence, 0));
+    for (let i = 0; i < elements.length; i += 1) {
+      for (let j = i + 1; j < elements.length; j += 1) {
+        const overlap = intersection(elements[i].region, elements[j].region);
+        if (overlap && !isProtected(elements[i], overlap)) {
+          spatialOverlapFound = true;
+          spatialOverlapDetail = `${sc.id} 中的“${elements[i].label || elements[i].id}”与“${elements[j].label || elements[j].id}”标注框重叠；保存时生产层会按源图自动消歧共享前景，真正漏标仍会阻止保存`;
+        }
+      }
+    }
+  });
+  checks.push({
+    title: '画面区域重叠提示',
+    saveScope: 'annotation',
+    pass: true,
+    severity: spatialOverlapFound ? 'warning' : 'pass',
+    msg: spatialOverlapFound ? spatialOverlapDetail : '画面区域没有重叠'
+  });
+
+  // Check 3: Every reveal must finish inside its scene budget.
+  let revealRangeErr = false;
+  let revealRangeDetail = '';
+  const revealRangeSceneIds = new Set();
+  App.scenes.forEach(sc => {
+    const dur = sceneDurationMs(sc);
+    (sc.annData.elements || []).forEach(e => {
+      const rawStart = Number(e.reveal?.startMs ?? 0);
+      const rawDuration = Number(e.reveal?.durationMs ?? 0);
+      const start = finiteNumber(rawStart, 0);
+      const end = start + finiteNumber(rawDuration, 0);
+      if (!Number.isFinite(rawStart) || !Number.isFinite(rawDuration) || start < 0 || end <= start || end > dur) {
+        revealRangeErr = true;
+        revealRangeSceneIds.add(sc.id);
+        revealRangeDetail = `${sc.id} 中的 "${e.label}" 使用无效绘制时间或超出场景 ${dur}ms`;
+      }
+    });
+  });
+  checks.push({
+    title: '元素绘制时间位于场景范围内',
+    saveScope: 'annotation',
+    sceneIds: [...revealRangeSceneIds],
+    pass: !revealRangeErr,
+    msg: revealRangeErr ? revealRangeDetail : '所有元素均在本幕时长内完成绘制'
+  });
+  if (revealRangeErr) allOk = false;
+
+  // Check 4: Final scene hold >= 400ms
+  let holdShort = false;
+  let holdDetail = '';
+  const holdShortSceneIds = new Set();
+  App.scenes.forEach(sc => {
+    const dur = sceneDurationMs(sc);
+    const els = sc.annData.elements || [];
+    const lastEnd = els.length ? Math.max(...els.map(e => {
+      const timing = revealTiming(e);
+      return timing.startMs + timing.durationMs;
+    })) : 0;
+    const hold = dur - lastEnd;
+    if (hold < 400) {
+      holdShort = true;
+      holdShortSceneIds.add(sc.id);
+      holdDetail = `${sc.id} 末帧停留仅 ${hold}ms (要求 >= 400ms)`;
+    }
+  });
+  checks.push({
+    title: '末帧停留时间充足 (>= 400ms)',
+    saveScope: 'annotation',
+    sceneIds: [...holdShortSceneIds],
+    pass: !holdShort,
+    msg: holdShort ? holdDetail : '所有场景绘制结束后均保留了充足的稳定画面停留'
+  });
+  if (holdShort) allOk = false;
+
+  // Check 5: Color reserve ratio.
+  let ratioErr = false;
+  let ratioDetail = '';
+  const ratioErrorSceneIds = new Set();
+  // Check 6: Minimum color duration.
+  let minColorErr = false;
+  let minColorDetail = '';
+  const minColorErrorSceneIds = new Set();
+  App.scenes.forEach(sc => {
+    const dp = sc.annData.drawingPlan || {};
+    const ratio = Number(dp.colorReserveRatio ?? 0.32);
+    const minColor = Number(dp.minimumColorMs ?? 900);
+    if (!Number.isFinite(ratio) || ratio < 0.18 || ratio > 0.45) {
+      ratioErr = true;
+      ratioErrorSceneIds.add(sc.id);
+      ratioDetail = `${sc.id} colorReserveRatio ${ratio} 超出范围 [0.18, 0.45]`;
+    }
+    if (!Number.isFinite(minColor) || minColor < 240) {
+      minColorErr = true;
+      minColorErrorSceneIds.add(sc.id);
+      minColorDetail = `${sc.id} minimumColorMs ${minColor} 低于最低限制 240ms`;
+    }
+  });
+  checks.push({
+    title: '上色保留比例合规 (0.18-0.45)',
+    saveScope: 'annotation',
+    sceneIds: [...ratioErrorSceneIds],
+    pass: !ratioErr,
+    msg: ratioErr ? ratioDetail : '所有场景的上色保留比例符合规范'
+  });
+  if (ratioErr) allOk = false;
+  checks.push({
+    title: '最短上色时间合规 (>= 240ms)',
+    saveScope: 'annotation',
+    sceneIds: [...minColorErrorSceneIds],
+    pass: !minColorErr,
+    msg: minColorErr ? minColorDetail : '所有场景均保留了最低上色时间'
+  });
+  if (minColorErr) allOk = false;
+
+  // Check 7: V3.3 Safe Animations
+  let animErr = false;
+  let animDetail = '';
+  // Check 8: Animation target and scene-local timing validity.
+  let animTargetErr = false;
+  let animTargetDetail = '';
+  if (App.animationPlanData?.scenes) {
+    App.animationPlanData.scenes.forEach(as => {
+      const evts = as.events || [];
+      const scene = App.scenes.find(item => item.id === as.sceneId);
+      const targetIds = new Set((scene?.annData?.elements || []).map(item => item.id));
+      const sceneDuration = sceneDurationFor(scene, as);
+      if (evts.length > 1) {
+        animErr = true;
+        animDetail = `${as.sceneId} 包含 ${evts.length} 个动画事件 (V3.3 规范限制每幕最多 1 个)`;
+      }
+      evts.forEach(evt => {
+        if (evt.gesturePath || evt.path) {
+          animErr = true;
+          animDetail = `${as.sceneId} 包含了禁止的额外 gesturePath / 路径`;
+        }
+        if (!['skipped', 'focus-push'].includes(evt.effect)) {
+          animErr = true;
+          animDetail = `${as.sceneId} 使用了未知的动画效果类型：${evt.effect}`;
+        }
+        const targetId = evt.targetElementId || evt.targetElement;
+        const start = Number(evt.startMs);
+        const end = Number(evt.endMs);
+        if (evt.effect !== 'skipped' && (!targetId || !targetIds.has(targetId))) {
+          animTargetErr = true;
+          animTargetDetail = `${as.sceneId} 的动画目标 ${targetId || '未设置'} 不存在于当前分区`;
+        } else if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start < 0 || end > sceneDuration) {
+          animTargetErr = true;
+          animTargetDetail = `${as.sceneId} 的幕内动画时间 ${evt.startMs}-${evt.endMs}ms 超出有效范围 0-${sceneDuration}ms`;
+        }
+      });
+    });
+  }
+  checks.push({
+    title: 'V3.3 安全后动画约束 (单幕最多1个，无几何路径)',
+    saveScope: 'animation-plan',
+    pass: !animErr,
+    msg: animErr ? animDetail : '后动画效果符合 V3.3 安全语义词表与单一效果限制'
+  });
+  if (animErr) allOk = false;
+  checks.push({
+    title: '动画目标存在且幕内时间有效',
+    saveScope: 'animation-plan',
+    pass: !animTargetErr,
+    msg: animTargetErr ? animTargetDetail : '所有动画均绑定真实分区并使用幕内相对时间'
+  });
+  if (animTargetErr) allOk = false;
+
+  // Check 9: Animation must start after its target reveal and leave a stable window.
+  let animSequenceErr = false;
+  let animSequenceDetail = '';
+  (App.animationPlanData?.scenes || []).forEach(as => {
+    const scene = App.scenes.find(item => item.id === as.sceneId);
+    const transition = transitionForScene(as);
+    const eraseRelative = transition
+      ? Number(transition.eraseStartMs) - sceneStartFor(scene, as)
+      : sceneDurationFor(scene, as);
+    (as.events || []).forEach(evt => {
+      const targetId = evt.targetElementId || evt.targetElement;
+      const target = (scene?.annData?.elements || []).find(item => item.id === targetId);
+      if (!target) return;
+      const timing = revealTiming(target);
+      const revealEnd = timing.startMs + timing.durationMs;
+      const start = Number(evt.startMs);
+      const end = Number(evt.endMs);
+      const persist = Number(evt.persistUntilMs ?? end);
+      const minimumEffectMs = EFFECT_MIN_MS[evt.effect] || 0;
+      if (![start, end, persist].every(Number.isFinite)) {
+        animSequenceErr = true;
+        animSequenceDetail = `${as.sceneId}/${targetId} 使用了非有限动画时间`;
+      } else if (start < revealEnd + PRE_ACTION_RESERVE_MS) {
+        animSequenceErr = true;
+        animSequenceDetail = `${as.sceneId}/${targetId} 在目标绘制完成 ${revealEnd}ms 后不足 ${PRE_ACTION_RESERVE_MS}ms 就开始动画`;
+      } else if (end - start < minimumEffectMs) {
+        animSequenceErr = true;
+        animSequenceDetail = `${as.sceneId}/${targetId} 的 ${evt.effect} 只有 ${end-start}ms，最低需要 ${minimumEffectMs}ms`;
+      } else if (persist < end + POST_ACTION_STABLE_MS) {
+        animSequenceErr = true;
+        animSequenceDetail = `${as.sceneId}/${targetId} 动画结束后稳定展示不足 ${POST_ACTION_STABLE_MS}ms`;
+      } else if (end + POST_ACTION_STABLE_MS > eraseRelative || persist > eraseRelative) {
+        animSequenceErr = true;
+        animSequenceDetail = `${as.sceneId}/${targetId} 与板擦之间没有保留 ${POST_ACTION_STABLE_MS}ms 稳定画面`;
+      }
+    });
+  });
+  checks.push({
+    title: '动画晚于目标绘制并保留稳定窗口',
+    saveScope: 'animation-plan',
+    pass: !animSequenceErr,
+    msg: animSequenceErr ? animSequenceDetail : `动画均在目标完成 ${PRE_ACTION_RESERVE_MS}ms 后开始，并在板擦前稳定至少 ${POST_ACTION_STABLE_MS}ms`
+  });
+  if (animSequenceErr) allOk = false;
+
+  // Check 10: Transition structure and absolute project timing.
+  let transStructureErr = false;
+  let transStructureDetail = '';
+  App.scenes.forEach((sc, idx) => {
+    const animSc = App.animationPlanData?.scenes?.find(s => s.sceneId === sc.id);
+    const trans = transitionForScene(animSc);
+    const isFinal = idx === App.scenes.length - 1;
+    if (isFinal && trans) {
+      transStructureErr = true;
+      transStructureDetail = `最后一幕 ${sc.id} 不得设置板擦转场`;
+      return;
+    }
+    if (!trans) return;
+    const sceneStart = sceneStartFor(sc, animSc);
+    const sceneEnd = isFinal ? finiteNumber(sc.endMs, sceneStart + sceneDurationFor(sc, animSc))
+      : sceneStartFor(App.scenes[idx + 1], App.animationPlanData?.scenes?.find(s => s.sceneId === App.scenes[idx + 1].id));
+    const eraseStart = Number(trans.eraseStartMs);
+    const eraseEnd = Number(trans.eraseEndMs);
+    const cleanStart = Number(trans.cleanCanvasStartMs);
+    const cleanEnd = Number(trans.cleanCanvasEndMs);
+    const eraseDuration = eraseEnd - eraseStart;
+    const cleanDuration = cleanEnd - cleanStart;
+    const nextId = App.scenes[idx + 1]?.id;
+    const ordered = [sceneStart, sceneEnd, eraseStart, eraseEnd, cleanStart, cleanEnd].every(Number.isFinite)
+      && sceneStart <= eraseStart && eraseStart < eraseEnd
+      && eraseEnd === cleanStart && cleanStart < cleanEnd && cleanEnd <= sceneEnd;
+    const metadataMatches = trans.fromSceneId === sc.id
+      && trans.toSceneId === nextId
+      && Number(trans.eraseDurationMs) === eraseDuration
+      && Number(trans.cleanCanvasMs) === cleanDuration
+      && Number(trans.stableHoldMs) === eraseStart - Number(trans.previousWordEndMs)
+      && Number(trans.gapMs) === Number(trans.nextSceneFirstWordMs) - Number(trans.previousWordEndMs);
+    if (!ordered) {
+      transStructureErr = true;
+      transStructureDetail = `${sc.id} 转场必须按幕内顺序执行：保持完整画面 → 240-420ms 擦除 → 至少60ms净板，并且不得越过场景结束`;
+    } else if (eraseDuration < MIN_ERASE_MS || eraseDuration > MAX_ERASE_MS || cleanDuration < MIN_CLEAN_CANVAS_MS || eraseDuration + cleanDuration > MAX_ACTIVE_TRANSITION_MS || Number(trans.stableHoldMs) < TRANSITION_STABLE_HOLD_MS) {
+      transStructureErr = true;
+      transStructureDetail = `${sc.id} 稳定停留 ${trans.stableHoldMs}ms、擦除 ${eraseDuration}ms 或净板 ${cleanDuration}ms 不符合时长门禁`;
+    } else if (!metadataMatches) {
+      transStructureErr = true;
+      transStructureDetail = `${sc.id} 的转场派生字段或前后幕 ID 与实际时间不一致`;
+    }
+  });
+  checks.push({
+    title: '板擦转场顺序、时长与派生字段一致',
+    saveScope: 'animation-plan',
+    pass: !transStructureErr,
+    msg: transStructureErr ? transStructureDetail : '转场使用全片绝对时间保存，幕内显示与派生字段均一致'
+  });
+  if (transStructureErr) allOk = false;
+
+  // Check 11: Per-scene and top-level transition copies must be identical.
+  let transCopyErr = false;
+  let transCopyDetail = '';
+  (App.animationPlanData?.scenes || []).forEach(as => {
+    const sceneCopy = as.transition || null;
+    const globalCopy = globalTransitionForScene(as.sceneId);
+    if (!!sceneCopy !== !!globalCopy || (sceneCopy && canonicalJson(sceneCopy) !== canonicalJson(globalCopy))) {
+      transCopyErr = true;
+      transCopyDetail = `${as.sceneId} 的 scenes[].transition 与顶层 transitions[] 不一致`;
+    }
+  });
+  const transitionIds = (App.animationPlanData?.transitions || []).map(item => item.fromSceneId);
+  const duplicateTransitionId = transitionIds.find((id, index) => transitionIds.indexOf(id) !== index);
+  const orphanTransition = (App.animationPlanData?.transitions || []).find(item =>
+    !(App.animationPlanData?.scenes || []).some(as => as.sceneId === item.fromSceneId && as.transition)
+  );
+  if (duplicateTransitionId || orphanTransition) {
+    transCopyErr = true;
+    transCopyDetail = duplicateTransitionId
+      ? `顶层 transitions[] 中 ${duplicateTransitionId} 出现重复条目`
+      : `顶层 transitions[] 中 ${orphanTransition.fromSceneId || '未知场景'} 没有对应的幕内转场`;
+  }
+  checks.push({
+    title: '转场两份存储严格同步',
+    saveScope: 'animation-plan',
+    pass: !transCopyErr,
+    msg: transCopyErr ? transCopyDetail : '每幕转场与顶层转场索引逐字段一致'
+  });
+  if (transCopyErr) allOk = false;
+
+  // Check 12: Transition pause budgets
+  let transErr = false;
+  let transDetail = '';
+  App.scenes.forEach((sc, idx) => {
+    const isFinal = (idx === App.scenes.length - 1);
+    const animSc = App.animationPlanData?.scenes?.find(s => s.sceneId === sc.id);
+    const transition = transitionForScene(animSc);
+    if (isFinal && transition) {
+      transErr = true;
+      transDetail = `最后一幕 (${sc.id}) 错误设置了板擦转场 (最后一幕应收手停留)`;
+    }
+    if (!isFinal && transition && App.wordsData?.words && App.scenes[idx+1]) {
+      const pause = calculatePauseBudget(sc, App.scenes[idx+1], App.wordsData.words);
+      if (pause < MIN_TRANSITION_GAP_MS) {
+        transErr = true;
+        transDetail = `${sc.id} 与下一幕气口仅 ${pause}ms，不足板擦转场最低预算 ${MIN_TRANSITION_GAP_MS}ms`;
+      }
+    }
+  });
+  checks.push({
+    title: `板擦转场跟随真实气口（最低 ${MIN_TRANSITION_GAP_MS}ms，动作不超过 ${MAX_ACTIVE_TRANSITION_MS}ms）`,
+    saveScope: 'animation-plan',
+    pass: !transErr,
+    msg: transErr ? transDetail : '板擦转场配置符合真实口播停顿预算'
+  });
+  if (transErr) allOk = false;
+
+  return { ok: allOk, checks: checks };
+}
+
+function validationSaveGate(validation, changeSet) {
+  return {ok: true, blockingChecks: [], hardBlockingChecks: [],
+    unrelatedChecks: (validation?.checks || []).filter(check => !check.pass)};
+}
+
+function validationDisplayState(check, gate, hasChanges) {
+  if (check.severity === 'warning') {
+    return { status: 'warn', icon: '!', msg: check.msg };
+  }
+  if (check.pass) {
+    return { status: 'pass', icon: '✓', msg: check.msg };
+  }
+  if (hasChanges && gate?.unrelatedChecks?.includes(check)) {
+    return {
+      status: 'warn',
+      icon: '!',
+      msg: `${check.msg}；本次修改未涉及对应文件，不阻止保存`
+    };
+  }
+  return { status: 'fail', icon: '✗', msg: check.msg };
+}
+
+function updateSaveProjectButton(hasChanges, gate) {
+  const button = $('saveProjectBtn');
+  let disabled = false;
+  let text = '💾 保存并应用';
+  let reason = '当前修改可以安全保存并应用';
+
+  if (!serverProject) {
+    disabled = true;
+    text = '💾 保存并应用';
+    reason = '当前不是本地项目工作台模式';
+  } else if (!App.mediaSessionReady) {
+    disabled = true;
+    text = '⛔ 会话未就绪';
+    reason = '工作台会话尚未就绪，请重新通过项目工作流打开';
+  } else if (!hasChanges) {
+    disabled = true;
+    text = '💾 无修改';
+    reason = '尚未检测到需要保存的修改';
+  } else if (gate.hardBlockingChecks.length) {
+    disabled = true;
+    text = '⛔ 素材不可用';
+    reason = gate.hardBlockingChecks[0].msg;
+  } else if (gate.blockingChecks.length) {
+    reason = `本次修改有 ${gate.blockingChecks.length} 项错误；点击后会显示第一项具体原因`;
+  } else if (gate.unrelatedChecks.length) {
+    reason = `可保存；项目另有 ${gate.unrelatedChecks.length} 项既有问题，但本次修改未涉及对应文件`;
+  }
+
+  button.disabled = disabled;
+  button.textContent = text;
+  button.title = reason;
+  button.dataset.saveState = disabled ? 'disabled' : (gate.blockingChecks.length ? 'needs-fix' : 'ready');
+}
+
+function changedAnimationSceneIds(beforePlan, afterPlan) {
+  const beforeScenes = new Map((beforePlan?.scenes || []).map(scene => [scene.sceneId, scene]));
+  const afterScenes = new Map((afterPlan?.scenes || []).map(scene => [scene.sceneId, scene]));
+  const beforeTransitions = new Map((beforePlan?.transitions || []).map(item => [item.fromSceneId, item]));
+  const afterTransitions = new Map((afterPlan?.transitions || []).map(item => [item.fromSceneId, item]));
+  const beforeGlobal = { ...(beforePlan || {}) };
+  const afterGlobal = { ...(afterPlan || {}) };
+  delete beforeGlobal.scenes;
+  delete afterGlobal.scenes;
+  delete beforeGlobal.transitions;
+  delete afterGlobal.transitions;
+  const allIds = [...new Set([
+    ...beforeScenes.keys(), ...afterScenes.keys(),
+    ...beforeTransitions.keys(), ...afterTransitions.keys()
+  ])].filter(Boolean).sort();
+  if (canonicalJson(beforeGlobal) !== canonicalJson(afterGlobal)) return allIds;
+  return allIds.filter(sceneId =>
+    canonicalJson(beforeScenes.get(sceneId)) !== canonicalJson(afterScenes.get(sceneId))
+    || canonicalJson(beforeTransitions.get(sceneId)) !== canonicalJson(afterTransitions.get(sceneId))
+  );
+}
+
+// Calculate Modified Files & Generate Minimal Change Set
+function calculateChanges() {
+  reconcileProjectSemanticIds();
+  syncProjectStoryboardFromAnnotations();
+  const modifiedFiles = [];
+  let requiresBoardReapproval = false;
+  const scenesToRerender = [];
+
+  // Check project.json
+  if (App.projectData && App.originalContent['project.json']) {
+    const currJson = canonicalJson(App.projectData);
+    if (currJson !== App.originalContent['project.json']) {
+      const styleChanged = (App.projectData.style_id !== App.originalProjectData?.style_id) || (App.projectData.style !== App.originalProjectData?.style);
+      const rpChanged = canonicalJson(App.projectData.renderer_profile) !== canonicalJson(App.originalProjectData?.renderer_profile);
+      const summary = [];
+      if (styleChanged) summary.push(`切换项目风格为 ${App.projectData.style} (${App.projectData.style_id})`);
+      if (rpChanged) summary.push(`更新了渲染器 profile 参数`);
+      if (!summary.length) summary.push(`更新了 project.json 配置`);
+
+      modifiedFiles.push({
+        path: 'project.json',
+        beforeSha256: App.originalHashes['project.json'] || null,
+        afterContent: App.projectData,
+        changesSummary: summary
+      });
+      if (styleChanged) {
+        requiresBoardReapproval = true;
+        scenesToRerender.push("all");
+      } else if (rpChanged) {
+        scenesToRerender.push("all");
+      }
+    }
+  }
+
+  // A project-mode add/delete is a workbench operation. The producer layer
+  // has already synchronized storyboard elements in memory; include that
+  // generated file automatically so the user never edits storyboard.json.
+  if (App.mode === 'project' && App.storyboardData && App.originalContent['storyboard.json']) {
+    const currJson = canonicalJson(App.storyboardData);
+    if (currJson !== App.originalContent['storyboard.json']) {
+      modifiedFiles.push({
+        path: 'storyboard.json',
+        beforeSha256: App.originalHashes['storyboard.json'] || null,
+        afterContent: App.storyboardData,
+        changesSummary: ['由工作台增删区域后自动同步分镜语义元素与内部 ID']
+      });
+      requiresBoardReapproval = true;
+      if (!scenesToRerender.includes('all')) {
+        (syncProjectStoryboardFromAnnotations() || []).forEach(sceneId => {
+          if (!scenesToRerender.includes(sceneId)) scenesToRerender.push(sceneId);
+        });
+      }
+    }
+  }
+
+  // Check annotations
+  App.scenes.forEach(sc => {
+    const rel = sc.annRelPath;
+    if (App.originalContent[rel]) {
+      const currJson = canonicalJson(sc.annData);
+      if (currJson !== App.originalContent[rel]) {
+        modifiedFiles.push({
+          path: rel,
+          beforeSha256: App.originalHashes[rel] || null,
+          afterContent: sc.annData,
+          changesSummary: [`更新场景 ${sc.id} 分区与时序编排 (${sc.annData.elements?.length || 0} 个区域)`]
+        });
+        requiresBoardReapproval = true;
+        if (!scenesToRerender.includes("all")) scenesToRerender.push(sc.id);
+      }
+    }
+  });
+
+  // Check animation-plan.json
+  if (App.animationPlanData && App.originalContent['animation-plan.json']) {
+    const currJson = canonicalJson(App.animationPlanData);
+    if (currJson !== App.originalContent['animation-plan.json']) {
+      modifiedFiles.push({
+        path: 'animation-plan.json',
+        beforeSha256: App.originalHashes['animation-plan.json'] || null,
+        afterContent: App.animationPlanData,
+        changesSummary: [`更新了动画与转场计划 (animation-plan.json)`]
+      });
+      if (!scenesToRerender.includes("all")) {
+        changedAnimationSceneIds(App.originalAnimationPlanData, App.animationPlanData).forEach(sceneId => {
+          if (!scenesToRerender.includes(sceneId)) scenesToRerender.push(sceneId);
+        });
+      }
+    }
+  }
+
+  // Stable Project Fingerprint
+  const projectSha = App.originalHashes['project.json'] || 'new_project';
+  const sceneIds = (App.storyboardData?.scenes || App.scenes).map(s => s.id || s).join(',');
+  const projectVersion = App.projectData?.version || 3;
+  const rawFingerprint = `${projectSha}:${sceneIds}:${projectVersion}`;
+
+  return {
+    hasChanges: modifiedFiles.length > 0,
+    changeSet: {
+      version: 1,
+      projectFingerprint: rawFingerprint,
+      projectRootId: App.projectData?.title || 'sketch-narrator-project',
+      createdAt: new Date().toISOString(),
+      files: modifiedFiles,
+      invalidationScope: {
+        requiresBoardReapproval: requiresBoardReapproval,
+        requiresAnimationPlanRegeneration: requiresBoardReapproval,
+        scenesToRerender: scenesToRerender,
+        requiresFinalComposeOnly: false
+      }
+    }
+  };
+}
+
+// Check Dirty & Diff on any action
+function panelDraftKey() {
+  return 'sketch-narrator-draft:' + (App.originalHashes['project.json'] || 'unknown');
+}
+
+function persistPanelDraft(changeSet) {
+  if (!serverProject || !App.mediaSessionReady || !changeSet.files.length) return;
+  try {
+    localStorage.setItem(panelDraftKey(), JSON.stringify(changeSet));
+  } catch (error) {
+    // Storage can be disabled or full. Keep edits in memory and warn on unload.
+    App.draftStorageFailed = true;
+  }
+}
+
+function restorePanelDraft() {
+  App.draftConflict = false;
+  try {
+    const saved = localStorage.getItem(panelDraftKey());
+    if (!saved) return;
+    const draft = JSON.parse(saved);
+    const baseline = calculateChanges().changeSet;
+    if (draft.projectFingerprint !== baseline.projectFingerprint || !Array.isArray(draft.files)) return;
+    const conflict = draft.files.some(file => file.beforeSha256 !== App.originalHashes[file.path]);
+    if (conflict) {
+      App.draftConflict = true;
+      toast('发现旧草稿，但磁盘文件已变化。草稿已保留，未覆盖当前项目。', 'err');
+      return;
+    }
+    for (const file of draft.files) {
+      if (file.path === 'project.json') App.projectData = file.afterContent;
+      else if (file.path === 'storyboard.json') App.storyboardData = file.afterContent;
+      else if (file.path === 'animation-plan.json') App.animationPlanData = file.afterContent;
+      else {
+        const scene = App.scenes.find(item => item.annRelPath === file.path);
+        if (scene) scene.annData = file.afterContent;
+      }
+    }
+    toast('已恢复本机未应用草稿；仍需“保存并应用”，尚未修改正式文件。', 'info');
+  } catch (error) {
+    toast('草稿未能恢复，正式项目保持不变。', 'err');
+  }
+}
+
+window.addEventListener('beforeunload', event => {
+  if (!App.dirty) return;
+  persistPanelDraft(calculateChanges().changeSet);
+  event.preventDefault();
+  event.returnValue = '';
+});
+
+// Each scene owns its edit history. Saved baselines and approvals are not history.
+const sceneHistories = new Map();
+let restoringHistory = false;
+const copyEdit = value => JSON.parse(JSON.stringify(value));
+function sceneSnapshot(sc) {
+  return {annotation: copyEdit(sc.annData),
+    storyboard: copyEdit(App.storyboardData?.scenes?.find(x => x.id === sc.id)?.elements || []),
+    animation: copyEdit(App.animationPlanData?.scenes?.find(x => x.sceneId === sc.id) || null),
+    transitions: copyEdit((App.animationPlanData?.transitions || []).filter(x => x.fromSceneId === sc.id))};
+}
+function historyKey() { return panelDraftKey() + ':history'; }
+function restoreSceneHistories() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(historyKey()) || 'null');
+    if (stored && canonicalJson(stored.hashes) !== canonicalJson(App.originalHashes)) {
+      localStorage.setItem(historyKey() + ':conflict:' + Date.now(), JSON.stringify(stored));
+    }
+    if (stored && canonicalJson(stored.hashes) === canonicalJson(App.originalHashes)) {
+      for (const [id, history] of stored.scenes) sceneHistories.set(id, history);
+    }
+  } catch (error) { App.draftStorageFailed = true; }
+  for (const sc of App.scenes) {
+    const current = sceneSnapshot(sc);
+    const history = sceneHistories.get(sc.id);
+    if (!history || canonicalJson(history.present) !== canonicalJson(current)) {
+      sceneHistories.set(sc.id, {past: [], present: current, future: []});
+    }
+  }
+}
+function persistSceneHistories() {
+  try { localStorage.setItem(historyKey(), JSON.stringify({hashes: App.originalHashes, scenes: [...sceneHistories]})); }
+  catch (error) { App.draftStorageFailed = true; }
+}
+function recordSceneHistories() {
+  if (restoringHistory || App.drag) return;
+  for (const sc of App.scenes) {
+    const next = sceneSnapshot(sc);
+    const h = sceneHistories.get(sc.id);
+    if (!h) sceneHistories.set(sc.id, {past: [], present: next, future: []});
+    else if (canonicalJson(h.present) !== canonicalJson(next)) {
+      h.past.push(h.present); h.present = next; h.future = [];
+    }
+  }
+  persistSceneHistories();
+  updateHistoryButtons();
+}
+function updateHistoryButtons() {
+  const h = sceneHistories.get(App.scenes[App.activeSceneIdx]?.id);
+  $('undoSceneBtn').disabled = !h?.past.length;
+  $('redoSceneBtn').disabled = !h?.future.length;
+}
+function stepSceneHistory(redo = false) {
+  const sc = App.scenes[App.activeSceneIdx];
+  const h = sceneHistories.get(sc?.id);
+  const source = redo ? h?.future : h?.past;
+  if (!source?.length) return;
+  enterEditMode();
+  (redo ? h.past : h.future).push(h.present);
+  h.present = source.pop();
+  const value = copyEdit(h.present);
+  restoringHistory = true;
+  try {
+    sc.annData = value.annotation;
+    const shot = App.storyboardData?.scenes?.find(x => x.id === sc.id);
+    if (shot) shot.elements = value.storyboard;
+    if (App.animationPlanData) {
+      App.animationPlanData.scenes = (App.animationPlanData.scenes || []).filter(x => x.sceneId !== sc.id);
+      if (value.animation) App.animationPlanData.scenes.push(value.animation);
+      App.animationPlanData.scenes.sort((a,b) => App.scenes.findIndex(x => x.id === a.sceneId) - App.scenes.findIndex(x => x.id === b.sceneId));
+      App.animationPlanData.transitions = (App.animationPlanData.transitions || []).filter(x => x.fromSceneId !== sc.id).concat(value.transitions);
+    }
+    App.selectedElemIdx = Math.min(App.selectedElemIdx, sc.annData.elements.length - 1);
+    checkDirtyAndDiff(); syncSceneFields(); renderElementList(); renderCanvas(); renderTimelineTab(); renderAnimationTab();
+  } finally { restoringHistory = false; }
+  persistSceneHistories(); updateHistoryButtons();
+}
+$('undoSceneBtn').addEventListener('click', () => stepSceneHistory());
+$('redoSceneBtn').addEventListener('click', () => stepSceneHistory(true));
+document.addEventListener('keydown', event => {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+  if (event.target.closest('input, textarea, [contenteditable="true"]')) return;
+  event.preventDefault(); stepSceneHistory(event.shiftKey);
+});
+
+function checkDirtyAndDiff() {
+  const { hasChanges, changeSet } = calculateChanges();
+  recordSceneHistories();
+  App.dirty = hasChanges;
+  if (hasChanges) persistPanelDraft(changeSet);
+  else if (serverProject && App.mediaSessionReady && !App.draftConflict) {
+    try { localStorage.removeItem(panelDraftKey()); } catch (error) { /* storage disabled */ }
+  }
+  if (hasChanges) $('dirtyFlag').classList.add('show');
+  else $('dirtyFlag').classList.remove('show');
+  const gate = validationSaveGate(null, changeSet);
+  updateSaveProjectButton(hasChanges, gate);
+  renderDiffTab();
+}
+
+// Render Diff Tab
+function renderDiffTab() {
+  const { hasChanges, changeSet } = calculateChanges();
+  const v = {checks: [{pass: true, title: "编辑保存", msg: "质量检查在请求生产时进行；保存不会调整你的标注"}]};
+  const gate = validationSaveGate(v, changeSet);
+
+  $('exportChecklist').innerHTML = v.checks.map(c => {
+    const display = validationDisplayState(c, gate, hasChanges);
+    return `
+    <div class="check-item">
+      <span class="check-icon ${display.status}">${display.icon}</span>
+      <span>${escapeHtml(c.title)} — <span class="muted">${escapeHtml(display.msg)}</span></span>
+    </div>
+  `}).join('');
+
+  const exportBtn = $('exportChangesBtn');
+  const exportModalBtn = $('exportModalBtn');
+  const canExport = hasChanges && gate.hardBlockingChecks.length === 0;
+
+  exportBtn.disabled = !canExport;
+  exportModalBtn.disabled = !canExport;
+
+  if (!hasChanges) {
+    $('diffFilesList').innerHTML = `<span class="muted">未检测到任何修改，无需导出变更集。</span>`;
+    $('diffCodeBox').style.display = 'none';
+  } else {
+    $('diffFilesList').innerHTML = `
+      检测到 <b>${changeSet.files.length}</b> 个修改文件：<br>
+      <ul style="margin:4px 0 0 18px;padding:0;">
+        ${changeSet.files.map(f => `<li><b>${escapeHtml(f.path)}</b> (修改前 SHA: <code style="font-size:11px;">${escapeHtml(f.beforeSha256 ? f.beforeSha256.slice(0,12)+'...' : '新建')}</code>) — ${f.changesSummary.map(escapeHtml).join(', ')}</li>`).join('')}
+      </ul>
+      <div style="margin-top:6px;font-size:12px;color:${changeSet.invalidationScope.requiresBoardReapproval ? '#fbbf24' : '#60a5fa'};">
+        ⚠️ 状态失效范围：${changeSet.invalidationScope.requiresBoardReapproval ? '将撤销受影响的确认；保留原图供复核' : '执行计划需复核；保存不表示可以渲染'}
+      </div>
+    `;
+    $('diffCodeBox').style.display = 'block';
+    $('diffCodeBox').textContent = JSON.stringify(changeSet, null, 2);
+  }
+}
+
+// Export Modal & Download
+$('exportChangesBtn').addEventListener('click', exportChangeSet);
+$('exportModalBtn').addEventListener('click', exportChangeSet);
+
+async function exportChangeSet() {
+  const { hasChanges, changeSet } = calculateChanges();
+  if (!hasChanges) {
+    toast('当前未产生任何修改，无需导出。', 'info');
+    return;
+  }
+  const jsonStr = JSON.stringify(changeSet, null, 2);
+
+  if (canFS && App.dirHandle) {
+    try {
+      const fileHandle = await App.dirHandle.getFileHandle('panel-change-set.json', { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(jsonStr);
+      await writable.close();
+      toast('已成功保存 panel-change-set.json 到项目根目录！', 'succ');
+      return;
+    } catch (e) {}
+  }
+
+  // Download fallback
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const a = document.createElement('a');
+  const objectUrl = URL.createObjectURL(blob);
+  a.href = objectUrl;
+  a.download = 'panel-change-set.json';
+  a.hidden = true;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  toast('已下载 panel-change-set.json', 'succ');
+}
+
+// Legacy Save Button (Folder mode direct write back)
+$('saveLegacyBtn').addEventListener('click', async () => {
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const text = JSON.stringify(sc.annData, null, 2);
+  if (canFS && App.dirHandle) {
+    try {
+      const h = await App.dirHandle.getFileHandle(sc.annRelPath, { create: true });
+      const w = await h.createWritable();
+      await w.write(text);
+      await w.close();
+      App.originalHashes[sc.annRelPath] = await computeSHA256(new TextEncoder().encode(text));
+      App.originalContent[sc.annRelPath] = canonicalJson(sc.annData);
+      checkDirtyAndDiff();
+      toast(`已保存标注：${sc.id}`, 'succ');
+      return;
+    } catch (e) {}
+  }
+  const blob = new Blob([text], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = sc.annRelPath;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`已下载 ${sc.annRelPath}`, 'succ');
+});
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function computeSHA256(buffer) {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function realPreviewVisible() {
+  return $('realPreviewVideo').style.display === 'block';
+}
+
+function hideRealPreview() {
+  const video = $('realPreviewVideo');
+  video.pause();
+  video.style.display = 'none';
+  $('proxyNotice').textContent = '🛡️ 编排代理预览模式（非最终落墨成片）';
+}
+
+function enterEditMode() {
+  pause();
+  hideRealPreview();
+  App.proxyPlaybackActive = false;
+}
+
+function syncPlaybackControls() {
+  const sc = App.scenes[App.activeSceneIdx];
+  const duration = scenePlaybackDurationMs(sc);
+  App.time = clamp(Number(App.time || 0), 0, duration);
+  $('timelineSlider').max = String(duration);
+  $('timelineSlider').value = String(Math.round(App.time));
+  $('timeLabel').textContent = `${(App.time / 1000).toFixed(2)}s / ${(duration / 1000).toFixed(2)}s`;
+}
+
+function waitForMediaEvent(media, eventName, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    let timer = null;
+    const cleanup = () => {
+      media.removeEventListener(eventName, onReady);
+      media.removeEventListener('error', onError);
+      if (timer) clearTimeout(timer);
+    };
+    const onReady = () => { cleanup(); resolve(); };
+    const onError = () => { cleanup(); reject(new Error('媒体文件无法读取')); };
+    media.addEventListener(eventName, onReady, { once: true });
+    media.addEventListener('error', onError, { once: true });
+    timer = setTimeout(() => { cleanup(); reject(new Error('媒体跳转超时')); }, timeoutMs);
+  });
+}
+
+async function seekMedia(media, seconds) {
+  if (!media) return;
+  if (media.readyState < 1) {
+    media.load();
+    await waitForMediaEvent(media, 'loadedmetadata');
+  }
+  const duration = Number.isFinite(media.duration) ? media.duration : seconds;
+  const target = clamp(Number(seconds || 0), 0, Math.max(0, duration - 0.001));
+  if (Math.abs(Number(media.currentTime || 0) - target) < 0.025) return;
+  media.currentTime = target;
+  await waitForMediaEvent(media, 'seeked');
+}
+
+async function seekSceneAudio(sc, localMs) {
+  if (!App.audio || !sc) return;
+  await seekMedia(App.audio, (Number(sc.startMs || 0) + Math.max(0, Number(localMs || 0))) / 1000);
+}
+
+function pause() {
+  App.playing = false;
+  if (App.rafId) cancelAnimationFrame(App.rafId);
+  App.rafId = null;
+  if (App.audio) App.audio.pause();
+  $('realPreviewVideo').pause();
+  $('playBtn').textContent = '▶';
+}
+
+async function play() {
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc) return;
+  const duration = scenePlaybackDurationMs(sc);
+  if (App.time >= duration - 5) App.time = 0;
+  App.proxyPlaybackActive = !realPreviewVisible();
+  const video = $('realPreviewVideo');
+  $('playBtn').textContent = '…';
+  try {
+    const seeks = [seekSceneAudio(sc, App.time)];
+    if (realPreviewVisible()) seeks.push(seekMedia(video, App.time / 1000));
+    await Promise.all(seeks);
+    App.playing = true;
+    App.lastTick = performance.now();
+    $('playBtn').textContent = '⏸';
+    if (realPreviewVisible()) await video.play();
+    if (App.audio) await App.audio.play();
+    App.rafId = requestAnimationFrame(tick);
+  } catch (error) {
+    pause();
+    toast('播放失败：' + error.message, 'err');
+  }
+}
+
+function tick(timestamp) {
+  if (!App.playing) return;
+  const sc = App.scenes[App.activeSceneIdx];
+  const duration = scenePlaybackDurationMs(sc);
+  if (App.audio && !App.audio.paused) {
+    App.time = App.audio.currentTime * 1000 - Number(sc.startMs || 0);
+  } else if (realPreviewVisible() && !$('realPreviewVideo').paused) {
+    App.time = $('realPreviewVideo').currentTime * 1000;
+  } else {
+    App.time += Math.max(0, timestamp - App.lastTick);
+  }
+  if (realPreviewVisible()) {
+    const video = $('realPreviewVideo');
+    const videoMs = video.currentTime * 1000;
+    if (Math.abs(videoMs - App.time) > 120) video.currentTime = Math.max(0, App.time / 1000);
+  }
+  App.lastTick = timestamp;
+  if (App.time >= duration) {
+    App.time = duration;
+    syncPlaybackControls();
+    if (!realPreviewVisible()) renderCanvas();
+    pause();
+    return;
+  }
+  syncPlaybackControls();
+  if (!realPreviewVisible()) renderCanvas();
+  App.rafId = requestAnimationFrame(tick);
+}
+
+$('playBtn').addEventListener('click', () => App.playing ? pause() : play());
+$('timelineSlider').addEventListener('input', event => {
+  pause();
+  App.time = Number(event.target.value || 0);
+  if (realPreviewVisible()) seekMedia($('realPreviewVideo'), App.time / 1000).catch(error => toast('预览跳转失败：' + error.message, 'err'));
+  else App.proxyPlaybackActive = true;
+  const sc = App.scenes[App.activeSceneIdx];
+  seekSceneAudio(sc, App.time).catch(error => toast('配音跳转失败：' + error.message, 'err'));
+  syncPlaybackControls();
+  if (!realPreviewVisible()) renderCanvas();
+});
+
+async function postPanelApi(path, payload) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (App.sessionToken) headers['X-Panel-Token'] = App.sessionToken;
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers,
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json();
+  if (response.status === 403) {
+    App.mediaSessionReady = false;
+    throw new Error('工作台会话已失效，请重新通过 workflow.py panel 打开；当前页面修改尚未丢失。');
+  }
+  if (!response.ok || result.error) throw new Error(result.error || `HTTP ${response.status}`);
+  return result;
+}
+
+$('saveProjectBtn').addEventListener('click', async () => {
+  const { hasChanges, changeSet } = calculateChanges();
+  if (!serverProject || !App.mediaSessionReady) return toast('工作台会话未就绪，请重新通过 workflow.py panel 打开项目。', 'err');
+  if (!hasChanges) return toast('当前没有需要保存的修改。', 'info');
+  const button = $('saveProjectBtn');
+  button.disabled = true;
+  button.textContent = '保存中…';
+  let appliedOnServer = false;
+  try {
+    const activeSceneId = App.scenes[App.activeSceneIdx]?.id || null;
+    const draftKey = panelDraftKey();
+    persistPanelDraft(changeSet);
+    const result = await postPanelApi('/api/apply-changes', { changeSet });
+    if (result.applied?.conflict) {
+      toast('编辑已保存为冲突副本：' + result.applied.saved_copy + '；未覆盖磁盘新版本。', 'info');
+      return;
+    }
+    appliedOnServer = true;
+    try { localStorage.removeItem(draftKey); } catch (error) { /* storage disabled */ }
+    await loadProjectFromServer(activeSceneId);
+    persistSceneHistories();
+    const files = result.applied?.applied_files || [];
+    const semanticDiff = result.applied?.storyboard_semantic_diff;
+    const semanticSummary = semanticDiff?.changed
+      ? ` 语义对象 ${semanticDiff.before_count}→${semanticDiff.after_count}，已退回第二次确认。`
+      : '';
+    toast(`已保存 ${files.length} 个文件。${semanticSummary} 预览和渲染需另行检查。`, 'succ');
+  } catch (error) {
+    toast(appliedOnServer ? '已保存，但重新载入失败：' + error.message + '；请刷新读取已保存的文件。'
+      : '保存失败：' + error.message + (App.draftStorageFailed ? '；本机草稿存储不可用，请勿关闭页面。' : '；未应用修改已保留为本机草稿。'), 'err');
+  } finally {
+    button.textContent = '💾 保存并应用';
+    checkDirtyAndDiff();
+  }
+});
+
+$('preparePlanBtn').addEventListener('click', async () => {
+  if (!App.mediaSessionReady) return;
+  if (App.dirty) return toast('请先保存当前编辑，再准备执行计划。', 'info');
+  const button = $('preparePlanBtn');
+  button.disabled = true;
+  button.textContent = '正在准备…';
+  try {
+    const current = App.scenes[App.activeSceneIdx]?.id;
+    await postPanelApi('/api/prepare-plan', {});
+    await loadProjectFromServer(current);
+    persistSceneHistories();
+    toast('执行计划已准备，旧计划已备份；请复核，准备成功不代表已经批准渲染。', 'succ');
+  } catch (error) {
+    toast('暂时无法准备：' + error.message + '；已保存的编辑保持不变。', 'err');
+  } finally {
+    button.disabled = false;
+    button.textContent = '准备执行计划';
+  }
+});
+
+$('realPreviewBtn').addEventListener('click', async () => {
+  const sc = App.scenes[App.activeSceneIdx];
+  if (!sc || !App.mediaSessionReady) return;
+  if (App.dirty) return toast('请先“保存并应用”当前修改，再生成真实预览。', 'err');
+  pause();
+  const button = $('realPreviewBtn');
+  button.disabled = true;
+  button.textContent = '正在生成…';
+  try {
+    const result = await postPanelApi('/api/real-preview', {
+      sceneId: sc.id,
+      fps: 30,
+      capLongEdge: 960
+    });
+    const video = $('realPreviewVideo');
+    App.realPreviewUrl = `${result.videoUrl}?sha=${encodeURIComponent(result.preview.sha256)}`;
+    video.src = App.realPreviewUrl;
+    video.style.display = 'block';
+    video.currentTime = 0;
+    App.proxyPlaybackActive = false;
+    App.time = 0;
+    $('proxyNotice').textContent = result.preview.cache_hit
+      ? '🎬 当前幕真实渲染预览（缓存命中）'
+      : `🎬 当前幕真实渲染预览（${result.preview.elapsed_sec || 0}s）`;
+    syncPlaybackControls();
+    toast(result.preview.cache_hit ? '已载入缓存中的真实预览。' : '当前幕真实预览已生成。', 'succ');
+  } catch (error) {
+    toast('真实预览失败：' + error.message, 'err');
+  } finally {
+    button.disabled = false;
+    button.textContent = '🎬 当前幕真实预览';
+  }
+});
+
+if (serverProject) {
+  loadProjectFromServer().catch(error => toast('自动加载项目失败：' + error.message, 'err'));
+}
+</script>
+</body>
+</html>

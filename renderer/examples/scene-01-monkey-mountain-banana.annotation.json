@@ -1,0 +1,41 @@
+{
+  "sceneId": "scene-01",
+  "canvas": { "width": 1672, "height": 941 },
+  "storyBasis": "猴子山上的小猴剥着香蕉，另一只猴子举着香蕉跳跃，孩子们开心地围观。三个独立画面单元依次展示。",
+  "sceneDurationMs": 8600,
+  "elements": [
+    {
+      "id": "left",
+      "label": "石堆上剥香蕉的小猴",
+      "sequence": 1,
+      "narrativeRole": "场景铺垫",
+      "subtitle": "小猴坐在石堆上，开心地剥着香蕉。",
+      "type": "structure",
+      "region": { "x": 35, "y": 175, "width": 455, "height": 525 },
+      "reveal": { "direction": "top_to_bottom", "startMs": 300, "durationMs": 2600, "maskPaddingPx": 22, "protectedRegions": [] },
+      "handPath": { "start": [265, 190], "end": [265, 685], "easing": "easeInOut" }
+    },
+    {
+      "id": "center",
+      "label": "举着香蕉跳跃的猴子",
+      "sequence": 2,
+      "narrativeRole": "动作展示",
+      "subtitle": "另一只猴子举着香蕉，欢快地跳了起来。",
+      "type": "character",
+      "region": { "x": 525, "y": 195, "width": 510, "height": 480 },
+      "reveal": { "direction": "top_to_bottom", "startMs": 3000, "durationMs": 2600, "maskPaddingPx": 22, "protectedRegions": [] },
+      "handPath": { "start": [780, 210], "end": [780, 660], "easing": "easeInOut" }
+    },
+    {
+      "id": "right",
+      "label": "开心围观的孩子们",
+      "sequence": 3,
+      "narrativeRole": "反应结果",
+      "subtitle": "旁边的孩子们看得眉开眼笑，有的还鼓起了掌。",
+      "type": "character",
+      "region": { "x": 1060, "y": 195, "width": 595, "height": 530 },
+      "reveal": { "direction": "top_to_bottom", "startMs": 5700, "durationMs": 2400, "maskPaddingPx": 22, "protectedRegions": [] },
+      "handPath": { "start": [1360, 210], "end": [1360, 710], "easing": "easeInOut" }
+    }
+  ]
+}
