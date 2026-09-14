@@ -11,8 +11,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "8aa5d03ee6f4b3a55959410a403fb32b4689de45a3e2b84b3bdea5fd394cb85c",
-      "bytes": 1515
+      "sha256": "ec5becee93fb1b42195f60084840aa6eb4ef63ecd8f928b7a6ecdbbbbf7eb08c",
+      "bytes": 1532
     },
     {
       "path": ".gitignore",
@@ -533,6 +533,11 @@
       "path": "scripts/run.sh",
       "sha256": "6c254b21e24e1dde7809edcf803da5ccdc88270b149d2ca477e0c00274b685d5",
       "bytes": 1717
+    },
+    {
+      "path": "scripts/run_ci_tests.py",
+      "sha256": "d6fe5043ef2847382f796928b14a453917fef85d64eaf697346f294d39e4ff58",
+      "bytes": 1426
     },
     {
       "path": "scripts/script_text.py",

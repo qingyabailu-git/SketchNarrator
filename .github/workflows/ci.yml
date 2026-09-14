@@ -2,7 +2,11 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+env:
+  PYTHONUTF8: "1"
 
 permissions:
   contents: read
@@ -42,8 +46,8 @@ jobs:
         shell: bash
         run: scripts/run.sh --help
       - name: Renderer tests
-        run: python -m unittest discover -s renderer/tests -p "test*.py"
+        run: python scripts/run_ci_tests.py renderer/tests
       - name: Workflow tests
-        run: python -m unittest discover -s tests -p "test*.py"
+        run: python scripts/run_ci_tests.py tests
       - name: Check release manifest
         run: python scripts/update_release_manifest.py --check
