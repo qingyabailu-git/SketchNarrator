@@ -516,8 +516,8 @@
     },
     {
       "path": "scripts/project_lock.py",
-      "sha256": "2a874a4378b56783a4cfd93e3a2d84bfb9c87143e96707b34ac3399808ba522a",
-      "bytes": 1784
+      "sha256": "b161785655f388c91805ece2dac7f8768623c336716aa5799a9b0ac7ea878f0a",
+      "bytes": 2135
     },
     {
       "path": "scripts/qa_final.py",
@@ -596,8 +596,8 @@
     },
     {
       "path": "scripts/workflow.py",
-      "sha256": "ef68d705c39e43e5b310e98b236461b45f4424e7fff687e636ec6e36bf802207",
-      "bytes": 230644
+      "sha256": "93660918363a0f9475436465bfc0920be45502311a1b6e652b6c7efa34d286f1",
+      "bytes": 230337
     },
     {
       "path": "tests/fixtures/voice-sample.txt",
@@ -641,13 +641,13 @@
     },
     {
       "path": "tests/test_composition_panel_extended.py",
-      "sha256": "41d3844eb2e043b0a6ee9f5ffcc217875eef28fd68e1698d4ec0a8e90a7265e6",
-      "bytes": 21751
+      "sha256": "4aba2f7dec478c6f19597b34bb0650dd79af32dcf55cdfb2a396505cdce2415c",
+      "bytes": 21795
     },
     {
       "path": "tests/test_editor_persistence.py",
-      "sha256": "e55f7078d9603de48e568dee3d376e14e95593232c154795800fad6fcca60985",
-      "bytes": 4597
+      "sha256": "9fdaea2a4d97c21f0c5c1535378ba6fc708aa07f3ca57fdcc9bd7825b72c0ed6",
+      "bytes": 4619
     },
     {
       "path": "tests/test_local_defaults.py",

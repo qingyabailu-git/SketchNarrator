@@ -47,7 +47,12 @@ def serialized_project(name="write"):
     def decorate(function):
         @wraps(function)
         def wrapped(root, *args, **kwargs):
-            with project_lock(root, name):
-                return function(root, *args, **kwargs)
+            # One physical project may have multiple path spellings (8.3 paths
+            # on Windows, /var and /private/var on macOS).  Lock and execute
+            # against the same canonical root so identity and containment
+            # checks cannot disagree.
+            canonical_root = Path(root).expanduser().resolve()
+            with project_lock(canonical_root, name):
+                return function(canonical_root, *args, **kwargs)
         return wrapped
     return decorate

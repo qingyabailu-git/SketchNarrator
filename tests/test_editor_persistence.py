@@ -68,7 +68,7 @@ class EditorPersistenceTests(unittest.TestCase):
         before = (self.root / self.rel).read_bytes()
         original = wf.write_json
         def fail_state(path, value):
-            if Path(path) == self.root / 'state.json':
+            if Path(path).resolve() == (self.root / 'state.json').resolve():
                 raise OSError('disk unavailable')
             return original(path, value)
         with patch.object(wf, 'write_json', side_effect=fail_state):

@@ -356,7 +356,7 @@ class TestCompositionPanelExtended(unittest.TestCase):
 
         original_write = wf.write_json
         def fail_state(path, value):
-            if Path(path) == root / "state.json":
+            if Path(path).resolve() == (root / "state.json").resolve():
                 raise OSError("simulated late failure")
             return original_write(path, value)
         with patch.object(wf, "write_json", side_effect=fail_state):
@@ -390,7 +390,7 @@ class TestCompositionPanelExtended(unittest.TestCase):
 
         original_write = wf.write_json
         def fail_state(path, value):
-            if Path(path) == root / "state.json":
+            if Path(path).resolve() == (root / "state.json").resolve():
                 raise OSError("simulated late failure")
             return original_write(path, value)
         with patch.object(wf, "write_json", side_effect=fail_state):
