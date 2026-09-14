@@ -11,7 +11,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "f56b19eca05e05b86769c4450529616865094fa63e18947fd3e75416c2d99b1b",
+      "sha256": "8aa5d03ee6f4b3a55959410a403fb32b4689de45a3e2b84b3bdea5fd394cb85c",
       "bytes": 1515
     },
     {
@@ -391,8 +391,8 @@
     },
     {
       "path": "renderer/tests/test_extract_subtitles.py",
-      "sha256": "89b6816b75d4cd755d86bd7271c9b3b52912611193f2e07582893aa9020da1b1",
-      "bytes": 11453
+      "sha256": "5fb0316d0f0574db5668fa22732444d3f75a852e9840b99e619c2d9a4d8d4966",
+      "bytes": 11561
     },
     {
       "path": "renderer/tests/test_ffmpeg_runtime.py",
@@ -591,8 +591,8 @@
     },
     {
       "path": "scripts/workflow.py",
-      "sha256": "05bd22af74ed72a64423d17c032724b602916d186920303068cc0a61b8d086a6",
-      "bytes": 229868
+      "sha256": "a348f1a577670d852775225cadb47303f873c6615e53e882c1548ef9ddca012d",
+      "bytes": 230302
     },
     {
       "path": "tests/fixtures/voice-sample.txt",

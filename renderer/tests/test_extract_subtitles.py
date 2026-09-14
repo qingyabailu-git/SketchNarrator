@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import sys
 import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 
 MODULE_PATH = Path(__file__).parents[1] / "scripts" / "extract_subtitles.py"
@@ -55,7 +57,8 @@ class ExtractSubtitlesTests(unittest.TestCase):
             def convert(text: str) -> str:
                 return text
 
-        with patch("opencc.OpenCC", return_value=Converter()) as opencc:
+        opencc = Mock(return_value=Converter())
+        with patch.dict(sys.modules, {"opencc": SimpleNamespace(OpenCC=opencc)}):
             self.assertEqual(extract_subtitles.to_simplified("测试"), "测试")
         opencc.assert_called_once_with("t2s")
 

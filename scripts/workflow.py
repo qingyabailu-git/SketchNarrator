@@ -78,6 +78,17 @@ COMPOSITIONS = {
 }
 STYLE_REGISTRY_PATH = Path(__file__).parents[1] / "references" / "style-registry.json"
 TIMELINE_EDGE_TOLERANCE_MS = 120
+
+
+def configure_cli_text_streams() -> None:
+    """Make Chinese CLI output portable across terminal locale defaults."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass
 TIMELINE_DURATION_TOLERANCE_MS = 250
 EXPECTED_QA_REPORT_VERSION = 6
 CONNECTOR_LABEL_TOKENS = ("箭头", "关系线", "连接线", "流程线", "指向线", "arrow")
@@ -4650,6 +4661,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_cli_text_streams()
     args = build_parser().parse_args(argv)
     try:
         if args.command == "styles":
