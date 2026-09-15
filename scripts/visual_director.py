@@ -634,8 +634,14 @@ def build_visual_plan(
     project: dict[str, Any],
     words: list[dict[str, Any]],
     project_root: str | Path | None = None,
+    *,
+    require_complete_coverage: bool = True,
 ) -> dict[str, Any]:
-    """Build and validate a visual plan from storyboard sections and real words."""
+    """Build and validate a visual plan from storyboard sections and real words.
+
+    Isolated scene diagnostics keep the complete word list so global word IDs remain
+    stable, but may defer whole-timeline coverage to the subsequent full build.
+    """
 
     prepared_words = _prepare_words(words)
     scenes = project.get("scenes")
@@ -713,8 +719,11 @@ def build_visual_plan(
             "shot_ids": [shot_id],
         })
 
-    if sorted(assigned) != list(range(len(prepared_words))):
-        raise VisualPlanError("视觉镜头未按顺序完整覆盖 words.json，存在遗漏、重复或交叉")
+    if require_complete_coverage:
+        if sorted(assigned) != list(range(len(prepared_words))):
+            raise VisualPlanError("视觉镜头未按顺序完整覆盖 words.json，存在遗漏、重复或交叉")
+    elif assigned != sorted(set(assigned)):
+        raise VisualPlanError("视觉镜头的词边界存在重复或交叉")
     for left, right in zip(shots, shots[1:]):
         left["transition_out"] = _transition_out(left, right)
     required_assets = []
@@ -749,7 +758,7 @@ def build_visual_plan(
         "shots": shots,
         "summary": _summary(shots, prepared_words, required_assets),
     }
-    validate_visual_plan(plan, words)
+    validate_visual_plan(plan, words, require_complete_coverage=require_complete_coverage)
     return plan
 
 
@@ -804,7 +813,12 @@ def _validate_beats(shot: dict[str, Any], words: list[dict[str, Any]]) -> None:
             raise VisualPlanError(f"{shot['shot_id']} 同时运动主体超过 2 个")
 
 
-def validate_visual_plan(plan: dict[str, Any], words: list[dict[str, Any]]) -> None:
+def validate_visual_plan(
+    plan: dict[str, Any],
+    words: list[dict[str, Any]],
+    *,
+    require_complete_coverage: bool = True,
+) -> None:
     prepared = _prepare_words(words)
     shots = plan.get("shots")
     if not isinstance(shots, list) or not shots:
@@ -866,10 +880,12 @@ def validate_visual_plan(plan: dict[str, Any], words: list[dict[str, Any]]) -> N
             _validate_spatial_allocation(native_regions, [_text(item.get("semantic_id")) for item in ownership], shot_id)
         if shot.get("expression_mode") != "native":
             raise VisualPlanError(f"{shot_id} 的 expression_mode 必须为 native")
-    expected_ranges = list(range(len(prepared)))
     flattened = [index for start, end in ranges for index in range(start, end + 1)]
-    if flattened != expected_ranges:
-        raise VisualPlanError("visual-plan.json 未完整、按顺序覆盖全部口播词，存在遗漏、重复或交叉")
+    if require_complete_coverage:
+        if flattened != list(range(len(prepared))):
+            raise VisualPlanError("visual-plan.json 未完整、按顺序覆盖全部口播词，存在遗漏、重复或交叉")
+    elif flattened != sorted(set(flattened)):
+        raise VisualPlanError("visual-plan.json 的词边界存在重复或交叉")
     for first, second, third in zip(shots, shots[1:], shots[2:]):
         if (first["template"], first["composition"]) == (second["template"], second["composition"]) == (third["template"], third["composition"]):
             raise VisualPlanError("连续三个镜头重复使用完全相同的 template 与 composition")

@@ -29,6 +29,32 @@ TTS_SPEC.loader.exec_module(tts_elevenlabs)
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_multiscene_diagnostics_keep_global_word_anchors(self) -> None:
+        words = [
+            {"text": "先说", "start_ms": 0, "end_ms": 900},
+            {"text": "再说", "start_ms": 1000, "end_ms": 1900},
+        ]
+        scenes = [
+            {
+                "id": "scene-01",
+                "narration": "先说",
+                "start_ms": 0,
+                "end_ms": 900,
+                "elements": [{"id": "first", "label": "第一幕", "trigger_text": "先说"}],
+            },
+            {
+                "id": "scene-02",
+                "narration": "再说",
+                "start_ms": 1000,
+                "end_ms": 1900,
+                "elements": [{"id": "second", "label": "第二幕"}],
+                "visual_beats": [{"trigger_word_id": "w-0002", "target": "second"}],
+            },
+        ]
+        project = {"version": 3, "scenes": scenes}
+
+        workflow.validate_visual_scenes_together(project, scenes, words, Path.cwd())
+
     def test_annotation_semantic_ids_are_reconciled_without_user_storyboard_edits(self) -> None:
         scene = {
             "id": "scene-01",

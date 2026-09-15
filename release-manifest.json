@@ -26,8 +26,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "19c490d3085ba6fcf6bc2343c103df95a6d27e355cfa3f52d0e199ccc0b0a70d",
-      "bytes": 3208
+      "sha256": "337c9289a68304d24fd33404aac8ea32713627fbea526e65dcba49d8b3c715e5",
+      "bytes": 3437
     },
     {
       "path": "CONTRIBUTING.md",
@@ -591,13 +591,13 @@
     },
     {
       "path": "scripts/visual_director.py",
-      "sha256": "d4093e577f3e34bbe6c72698b16975c1d51daf5b98be1f1aed679e66d004827b",
-      "bytes": 44497
+      "sha256": "fc0d1de611fef5b1db11444ec090b1a7250d3c3febe5638483757afd54b85bce",
+      "bytes": 45133
     },
     {
       "path": "scripts/workflow.py",
-      "sha256": "93660918363a0f9475436465bfc0920be45502311a1b6e652b6c7efa34d286f1",
-      "bytes": 230337
+      "sha256": "2dfd58ee5e6e7cc0a3a81d11df8d90829c0596f77f45c998411d0738cef1feee",
+      "bytes": 230449
     },
     {
       "path": "tests/fixtures/voice-sample.txt",
@@ -746,8 +746,8 @@
     },
     {
       "path": "tests/test_workflow.py",
-      "sha256": "4149fc0a5311afece9a6d60106fa06ddba5e95c8a06c0273c74b2e9241e3e7ef",
-      "bytes": 53238
+      "sha256": "29fc62059bd259eb748f8df3dd7bd594d32d886874d6c541039bec2af9202563",
+      "bytes": 54219
     },
     {
       "path": "tests/test_workflow_optimizations.py",

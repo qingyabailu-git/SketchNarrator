@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Separate isolated scene diagnostics from whole-timeline coverage validation so multi-scene Gate 2 compilation preserves global word anchors without falsely requiring every scene to cover the complete narration.
+
 ## 0.1.0 - 2026-09-14
 
 ### 2026-09-13

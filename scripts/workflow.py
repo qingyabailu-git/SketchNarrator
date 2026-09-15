@@ -605,7 +605,12 @@ def validate_visual_scenes_together(
         candidate = copy.deepcopy(project)
         candidate["scenes"] = [copy.deepcopy(scene)]
         try:
-            build_visual_plan(candidate, words, root)
+            build_visual_plan(
+                candidate,
+                words,
+                root,
+                require_complete_coverage=False,
+            )
         except VisualPlanError as exc:
             issues.append(f"{scene.get('id', 'unknown-scene')}: {exc}")
     if issues:
