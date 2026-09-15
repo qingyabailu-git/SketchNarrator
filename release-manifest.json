@@ -26,8 +26,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "337c9289a68304d24fd33404aac8ea32713627fbea526e65dcba49d8b3c715e5",
-      "bytes": 3437
+      "sha256": "f39bbaf2bb2bd7eb07d9d43d7cdc83a2c2726709a8e705d56ff6bc4e0e6c340c",
+      "bytes": 3445
     },
     {
       "path": "CONTRIBUTING.md",
@@ -181,7 +181,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "f126a3361a87d651125e458c91c0bd09f55188d488900fb17751a6ee2a6879c4",
+      "sha256": "6e88743a31bcd4cb2a3ba8499faea32a3f1321c1b31a5c2d952d85fd0e77b043",
       "bytes": 822
     },
     {
