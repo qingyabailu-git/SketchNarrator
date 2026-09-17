@@ -1,8 +1,10 @@
 # Changelog
 
-- Promote optional per-scene title cards into the storyboard, Gate 2 confirmation, visual plan, render cache, panel preview, and final scene renderer. External private settings may require a card for every scene without embedding private values in the public package.
+## 0.1.2 - 2026-09-17
+
 - Add adaptive duration pacing solver (`scripts/pacing.py` and `workflow.py pace-annotations`): dynamically stretch element drawing durations across voiceover intervals (default 72% drawing + 28% hold) to eliminate rushed 1.2s bursts and long dead pauses.
 - Add idle pacing advisory warning to `board_qa.py` when element drawing duration is disproportionately short compared to available voiceover window.
+- Promote optional per-scene title cards into the storyboard, Gate 2 confirmation, visual plan, render cache, panel preview, and final scene renderer. External private settings may require a card for every scene without embedding private values in the public package.
 
 ## 0.1.1 - 2026-09-15
 
