@@ -271,7 +271,7 @@ def check_scene(
     regions: list[dict[str, int]] = []
     region_elements: list[dict[str, Any]] = []
     previous_end = 0
-    for element in elements:
+    for index, element in enumerate(elements):
         region = element.get("region", {})
         if not all(isinstance(region.get(key), int) for key in ("x", "y", "width", "height")):
             errors.append(f"元素 {element.get('sequence')} 的 region 无效")
@@ -285,6 +285,16 @@ def check_scene(
             errors.append(f"元素 {element.get('sequence')} 的绘制时间重叠或无效")
         else:
             previous_end = start + duration
+            scene_dur = int(annotation.get("sceneDurationMs", 0) or 0)
+            if index < len(elements) - 1:
+                next_start = elements[index + 1].get("reveal", {}).get("startMs")
+                available = (next_start - start) if isinstance(next_start, int) else 0
+            else:
+                available = max(0, scene_dur - start)
+            if available >= 4000 and duration < available * 0.35:
+                warnings.append(
+                    f"元素 {element.get('sequence')} 绘制时长 {duration}ms 明显偏短（可用窗口 {available}ms，闲置率过高），建议使用 pace-annotations 自适应延长"
+                )
         regions.append(region)
         region_elements.append(element)
 

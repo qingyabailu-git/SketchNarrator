@@ -16,6 +16,14 @@
   "font": {
     "path": "path/to/your/cjk-font.ttf"
   },
+  "title_cards": {
+    "enabled": false,
+    "required_per_scene": false,
+    "position": "top-left",
+    "style": "outlined-label-v1",
+    "accent_palette": ["#356AE6", "#43A85B"],
+    "max_text_chars": 18
+  },
   "bookends": {
     "enabled": false,
     "intro": "path/to/your/intro.mp4",

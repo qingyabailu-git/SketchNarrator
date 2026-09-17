@@ -95,6 +95,14 @@ class TestWorkflowOptimizations(unittest.TestCase):
         reason_ann = wf.scene_invalidation_reason(root, cached_entry, payload_ann_changed)
         self.assertEqual(reason_ann, "annotation_modified")
 
+        ann_path.write_text('{"sceneId":"s1"}', encoding="utf-8")
+        _, payload_card_changed = wf.scene_render_cache_payload(
+            root, record, scene_plan, frame_plan, renderer_profile, 30, 1080, "small-hand", "hash123",
+            title_card={"text": "新的重点"},
+        )
+        reason_card = wf.scene_invalidation_reason(root, cached_entry, payload_card_changed)
+        self.assertEqual(reason_card, "title_card_modified")
+
     def test_subtitle_style_change_does_not_affect_scene_cache_key(self):
         """11: Verify changing subtitle styles leaves scene render cache key unchanged."""
         root = self.temp_dir

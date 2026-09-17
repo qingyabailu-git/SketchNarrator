@@ -47,11 +47,11 @@
   deliverables/archive/
 ```
 
-`project.json` 保存用户意图、风格、配音来源、渲染配置和场景索引；`state.json` 保存三次用户确认、当前产物哈希和内部 QA。任何文件都不保存 API 密钥。
+`project.json` 保存用户意图、风格、配音来源、渲染配置、可选文字卡片配置和场景索引；`state.json` 保存三次用户确认、当前产物哈希和内部 QA。任何文件都不保存 API 密钥。
 
-`state.json.boards` 是整板图与 annotation 的持久登记，不是一次确认的临时缓存。改稿、换声音或重建逐词时间时，撤销 `approvals.boards`、清空 `render_cache` 并把现有记录写成 `stale: true` 与 `stale_reason`，但保留图片路径、标注路径和文件哈希，供工作台继续显示和用户复核。用户重新登记该幕或再次确认全部板图后移除 stale 字段。工作台启动时可以从项目内约定路径恢复丢失的登记，但恢复项必须保持待复核状态；不得读取项目目录外的文件。
+`state.json.boards` 是整板图与 annotation 的持久登记，不是一次确认的临时缓存。改稿、换声音、修改文字卡片或重建逐词时间时，撤销受影响的批准、清空对应 `render_cache` 并把现有记录写成 `stale: true` 与 `stale_reason`，但保留图片路径、标注路径和文件哈希，供工作台继续显示和用户复核。用户重新登记该幕或再次确认全部板图后移除 stale 字段。工作台启动时可以从项目内约定路径恢复丢失的登记，但恢复项必须保持待复核状态；不得读取项目目录外的文件。
 
-`state.json.approvals.boards` 绑定动画计划哈希、输入指纹和第三次确认时的像素风险快照。风险快照记录 `visual_warnings_are_advisory: true`、当前归属报告哈希及已展示的对象级风险；它证明执行的是用户看到的版本，不把视觉提醒升级成批准后的否决门禁。图片、标注、掩码、顺序或渲染参数变化时，原批准照常失效。
+`state.json.approvals.boards` 绑定动画计划哈希、输入指纹和第三次确认时的像素风险快照。风险快照记录 `visual_warnings_are_advisory: true`、当前归属报告哈希及已展示的对象级风险；它证明执行的是用户看到的版本，不把视觉提醒升级成批准后的否决门禁。图片、标注、掩码、顺序、文字卡片或渲染参数变化时，原批准照常失效。
 
 `state.json.source_extract` 登记当前一次参考素材提取的来源类型、去掉查询参数后的显示地址、用户明确选择的 `reference_scope`、提取来源、条目数、清单路径和文件哈希。`reference_scope` 只允许 `transcript` 或 `full`；命令行入口必须显式提供，不能把完整视频分析作为隐式默认。它不属于正式 `artifacts`，不会自动成为锁定口播，也不会使已经确认的项目阶段倒退。再次提取写入新的时间戳目录并更新这一指针，旧提取包保留。
 
@@ -104,7 +104,7 @@
 
 镜头边界、节奏、运动类型和关键帧来自本地确定性分析。空白的 `visual_review` 与 `visual_description` 明确表示仍需 Codex 实际查看联系表和代表性关键帧；它们不得由文件存在性冒充已经完成。参考分析只为后续原创改写提供证据，原视频时间轴和镜头表不直接成为正式 `storyboard.json` 或 `visual-plan.json`。
 
-渲染后 `project.json` 还记录 `render_fps`、`render_target_frames` 与按帧量化后的 `render_duration_ms`。`renders/scene-cache.json` 在每幕成功后立即保存缓存键、场景视频路径、SHA256、目标帧数、前导空白帧数和输入摘要；后续合成失败不删除它。`state.json.render_cache` 记录最近一次完整流水线采用的同一批缓存。缓存键覆盖整板图、标注、该幕 animation plan、风格、手部、分辨率、帧率和渲染器指纹。两处记录都不属于 `artifacts`，命中时必须重新核对键、文件和哈希。`state.json.render_metrics` 只记录本次并行数、命中数和阶段耗时，不作为成片 QA 证据。
+渲染后 `project.json` 还记录 `render_fps`、`render_target_frames` 与按帧量化后的 `render_duration_ms`。`renders/scene-cache.json` 在每幕成功后立即保存缓存键、场景视频路径、SHA256、目标帧数、前导空白帧数和输入摘要；后续合成失败不删除它。`state.json.render_cache` 记录最近一次完整流水线采用的同一批缓存。缓存键覆盖整板图、标注、该幕 animation plan、已批准文字卡片、字体、风格、手部、分辨率、帧率和渲染器指纹。两处记录都不属于 `artifacts`，命中时必须重新核对键、文件和哈希。`state.json.render_metrics` 只记录本次并行数、命中数和阶段耗时，不作为成片 QA 证据。
 
 `visual-plan.json` 与 `visual-plan.md` 是脚本/正式配音锁定后生成的独立视觉编排层。它只消费 `storyboard.json` 和真实 `audio/words.json`，记录 section、shot、beat、镜头类别、模板、构图、节奏、动画触发和素材需求；它不生成图片、不绑定尚未确定的 presenter IP。`state.json.artifacts.visual_plan` 与 `visual_plan_markdown` 保存两份文件的哈希。V1/V2 旧项目没有这两个文件时继续按旧安全默认读取；V3 项目重新登记脚本/配音时必须生成。
 
@@ -247,6 +247,12 @@ V3.3 绝对板擦时间；`emphasis` 或 `conclusion` 只来自已经进入渲�
       "start_ms": 0,
       "end_ms": 6800,
       "composition": "causal-chain",
+      "title_card": {
+        "text": "需求为何上升",
+        "position": "top-left",
+        "style": "outlined-label-v1",
+        "accent": "#356AE6"
+      },
       "character_ids": ["host"],
       "elements": [
         {"id": "buyers", "label": "购买黄金的人群", "role": "原因", "trigger_text": "越来越多的人"},
@@ -265,8 +271,9 @@ V3.3 绝对板擦时间；`emphasis` 或 `conclusion` 只来自已经进入渲�
 - 新分镜不使用箭头、虚线轨迹、关系线或分隔线；关系由对象位置、动作、大小和留白表达。旧项目的 relation 字段只保留读取兼容。
 - `composition` 必须来自视觉制作规范；相邻场景不得相同。
 - `character_ids` 只能引用顶层 `characters` 中已声明的 id。
+- `title_card` 是可选的场景级计划。启用项目级 `title_card_profile.required_per_scene` 后，每幕必须在 Gate 2 前明确填写 `text`；编译器只补位置、样式和强调色，不从标题或口播猜文字。卡片独立于板图、标注和像素归属，并在该幕全部帧中持续显示。
 
-`stage-script-voice` 在保存前编译尚未批准的分镜草稿：补齐可确定的安全字段，并一次列出全部缺失的触发依据、非法构图、身份和时间问题。编译不得按元素数量平均分配触发词；正式保存的 `storyboard.json` 与第二次确认看到的视觉计划共享同一身份和时间依据。
+`stage-script-voice` 在保存前编译尚未批准的分镜草稿：补齐可确定的安全字段，并一次列出全部缺失的触发依据、非法构图、身份、卡片和时间问题。编译不得按元素数量平均分配触发词；正式保存的 `storyboard.json` 与第二次确认看到的视觉计划共享同一身份、时间依据和卡片计划。
 
 ## visual-plan.json
 

@@ -132,4 +132,20 @@ def apply_local_defaults(project: dict[str, Any], skill_root: Path) -> dict[str,
             "source": "external-local",
         }
 
+    title_cards = settings.get("title_cards")
+    if isinstance(title_cards, dict):
+        profile = dict(result.get("title_card_profile") or {})
+        for key in (
+            "enabled",
+            "required_per_scene",
+            "position",
+            "style",
+            "accent_palette",
+            "max_text_chars",
+        ):
+            if key in title_cards and key not in profile:
+                profile[key] = copy.deepcopy(title_cards[key])
+        profile.setdefault("source", "external-local")
+        result["title_card_profile"] = profile
+
     return result

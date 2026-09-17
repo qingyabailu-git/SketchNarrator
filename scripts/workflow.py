@@ -65,6 +65,11 @@ from local_defaults import LocalDefaultsError, apply_local_defaults
 from source_privacy import require_public_source, source_label, redact_source_log
 from phase_budget import effective_annotation as apply_effective_annotation, plan_budgets, PHASE_POLICY
 from pixel_contract import require_ownership, resolve_ownership, compile_masks, PIXEL_POLICY
+from pacing import (
+    DEFAULT_PACING_RATIO,
+    calculate_adaptive_durations,
+    pace_project_annotations,
+)
 
 VERSION = 3
 ALLOWED_IMAGES = {".png", ".jpg", ".jpeg", ".webp"}
@@ -459,6 +464,67 @@ def compile_storyboard_draft(data: dict[str, Any]) -> tuple[dict[str, Any], list
             normalized_elements.append(element)
         scene["elements"] = normalized_elements
     return compiled, changes
+
+
+TITLE_CARD_POSITIONS = {"top-left"}
+TITLE_CARD_STYLES = {"outlined-label-v1"}
+DEFAULT_TITLE_CARD_ACCENTS = ["#356AE6", "#43A85B"]
+
+
+def compile_scene_title_cards(
+    project: dict[str, Any], scenes: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Normalize approved scene cards without inventing their semantic text."""
+
+    profile = project.get("title_card_profile")
+    profile = dict(profile) if isinstance(profile, dict) else {}
+    enabled = bool(profile.get("enabled", False))
+    required = bool(profile.get("required_per_scene", False))
+    has_explicit_card = any(isinstance(scene.get("title_card"), dict) for scene in scenes)
+    if not enabled and not required and not has_explicit_card:
+        return copy.deepcopy(scenes)
+
+    position = str(profile.get("position") or "top-left").strip()
+    style = str(profile.get("style") or "outlined-label-v1").strip()
+    max_chars = int(profile.get("max_text_chars") or 18)
+    palette = profile.get("accent_palette")
+    if not isinstance(palette, list) or not palette:
+        palette = list(DEFAULT_TITLE_CARD_ACCENTS)
+    palette = [str(value).strip() for value in palette if str(value).strip()]
+    if not palette:
+        palette = list(DEFAULT_TITLE_CARD_ACCENTS)
+
+    issues: list[str] = []
+    compiled = copy.deepcopy(scenes)
+    for scene_index, scene in enumerate(compiled):
+        scene_id = str(scene.get("id") or f"scene-{scene_index + 1:02d}")
+        raw = scene.get("title_card")
+        card = dict(raw) if isinstance(raw, dict) else {}
+        text = " ".join(str(card.get("text") or "").split())
+        if not text:
+            if required:
+                issues.append(f"{scene_id} 缺少 title_card.text；文字卡片必须在分镜阶段设计")
+            scene.pop("title_card", None)
+            continue
+        card_position = str(card.get("position") or position).strip()
+        card_style = str(card.get("style") or style).strip()
+        accent = str(card.get("accent") or palette[scene_index % len(palette)]).strip()
+        if card_position not in TITLE_CARD_POSITIONS:
+            issues.append(f"{scene_id} 的文字卡片位置不受支持：{card_position}")
+        if card_style not in TITLE_CARD_STYLES:
+            issues.append(f"{scene_id} 的文字卡片样式不受支持：{card_style}")
+        if max_chars > 0 and len(text) > max_chars:
+            issues.append(f"{scene_id} 的文字卡片超过 {max_chars} 个字符：{text}")
+        scene["title_card"] = {
+            "text": text,
+            "position": card_position,
+            "style": card_style,
+            "accent": accent,
+        }
+    if issues:
+        detail = "\n".join(f"{index}. {issue}" for index, issue in enumerate(issues, 1))
+        raise WorkflowError(f"分镜文字卡片有 {len(issues)} 个问题，请一次修正：\n{detail}")
+    return compiled
 
 
 def validate_storyboard(
@@ -863,7 +929,9 @@ def validate_panel_storyboard(
     candidate_scenes = candidate.get("scenes", [])
     if [scene.get("id") for scene in candidate_scenes] != [scene.get("id") for scene in current_scenes]:
         raise WorkflowError("工作台只能同步场景内视觉元素，不能新增、删除或重排口播场景")
-    immutable_keys = ("title", "narration", "start_ms", "end_ms", "composition", "character_ids")
+    immutable_keys = (
+        "title", "narration", "start_ms", "end_ms", "composition", "character_ids", "title_card"
+    )
     for old_scene, new_scene in zip(current_scenes, candidate_scenes):
         for key in immutable_keys:
             if new_scene.get(key) != old_scene.get(key):
@@ -1832,6 +1900,8 @@ def stage_script_voice(root: Path, args: argparse.Namespace) -> None:
         require_v2=project_version >= 2,
         require_v3=project_version >= 3,
     )
+    scenes = compile_scene_title_cards(project, scenes)
+    storyboard_data["scenes"] = scenes
     words_data = read_json(Path(args.words).resolve())
     words = validate_words(words_data, require_duration=True)
     if int(project.get("version", 1)) >= 3:
@@ -2078,6 +2148,7 @@ def annotation_template(root: Path, scene_id: str, image: str) -> Path:
         raise WorkflowError(f"不存在场景：{scene_id}")
     with Image.open(image) as board:
         width, height = board.size
+    scene_dur = int(scene["end_ms"]) - int(scene["start_ms"])
     elements = []
     for index, raw in enumerate(scene.get("elements") or [], 1):
         item = raw if isinstance(raw, dict) else {"label": str(raw)}
@@ -2085,12 +2156,40 @@ def annotation_template(root: Path, scene_id: str, image: str) -> Path:
         elements.append({"id": identity, "sequence": index, "sourceElementIds": [identity],
                          "label": item.get("label", ""), "triggerText": item.get("trigger_text") or item.get("triggerText") or "",
                          "region": None, "reveal": {"startMs": None, "durationMs": None}})
+    visual_plan_path = root / "visual-plan.json"
+    if visual_plan_path.is_file():
+        try:
+            vp = read_json(visual_plan_path)
+            shot = next((s for s in vp.get("shots", []) if s.get("section_id") == scene_id), None)
+            if shot:
+                shot_start = int(shot.get("start_ms", 0))
+                for el in elements:
+                    beat = next((b for b in shot.get("beats", []) if b.get("target") == el["id"] or b.get("trigger_text") == el["triggerText"]), None)
+                    if beat and beat.get("start_ms") is not None:
+                        el["reveal"]["startMs"] = max(100, int(beat["start_ms"]) - shot_start)
+                elements = calculate_adaptive_durations(elements, scene_dur)
+        except Exception:
+            pass
     target = root / "annotations" / f"{scene_id}.draft.json"
     if target.exists():
         raise WorkflowError(f"草稿已存在，未覆盖：{target}")
     write_json(target, {"sceneId": scene_id, "status": "draft", "canvas": {"width": width, "height": height},
-                        "sceneDurationMs": int(scene["end_ms"]) - int(scene["start_ms"]), "elements": elements})
+                        "sceneDurationMs": scene_dur, "elements": elements})
     return target
+
+
+def pace_annotations_command(
+    root: Path,
+    ratio: float = DEFAULT_PACING_RATIO,
+    scene_id: str | None = None,
+) -> dict[str, Any]:
+    with project_lock(root):
+        report = pace_project_annotations(root, ratio=ratio, scene_id=scene_id)
+        if report.get("total_elements_paced", 0) > 0:
+            project, state = load_project(root)
+            mark_boards_stale(state, "时序已通过 pace-annotations 优化，需重新准备动画计划")
+            write_json(root / "state.json", state)
+        return report
 
 
 def _synchronize_saved_storyboard_state(
@@ -2760,6 +2859,10 @@ def renderer_fingerprint(skill_root: Path) -> str:
         relative = str(path.relative_to(skill_root)).replace("\\", "/")
         hasher.update(relative.encode("utf-8"))
         hasher.update(digest(path).encode("ascii"))
+    title_card_renderer = skill_root.parent / "scripts" / "title_card.py"
+    if title_card_renderer.is_file():
+        hasher.update(b"public-scripts/title_card.py")
+        hasher.update(digest(title_card_renderer).encode("ascii"))
     return hasher.hexdigest()
 
 
@@ -2796,12 +2899,14 @@ def scene_render_cache_payload(
     hand_mode: str,
     renderer_hash: str,
     effective_annotation_sha256: str | None = None,
+    title_card: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     payload = {
         "cache_version": 1,
         "image_sha256": digest(root / record["image"]),
         "annotation_sha256": digest(root / record["annotation"]),
         "effective_annotation_sha256": effective_annotation_sha256,
+        "title_card": title_card,
         "animation_scene": scene_plan,
         "frame_plan": frame_plan,
         "renderer_profile": renderer_profile,
@@ -2826,10 +2931,11 @@ def scene_render_cache_key(
     hand_mode: str,
     renderer_hash: str,
     effective_annotation_sha256: str | None = None,
+    title_card: dict[str, Any] | None = None,
 ) -> str:
     key, _ = scene_render_cache_payload(
         root, record, scene_plan, frame_plan, renderer_profile, fps, cap_long_edge, hand_mode, renderer_hash,
-        effective_annotation_sha256,
+        effective_annotation_sha256, title_card,
     )
     return key
 
@@ -2855,6 +2961,8 @@ def scene_invalidation_reason(
         return "annotation_modified"
     if old_payload.get("effective_annotation_sha256") != new_payload.get("effective_annotation_sha256"):
         return "effective_annotation_modified"
+    if old_payload.get("title_card") != new_payload.get("title_card"):
+        return "title_card_modified"
     if old_payload.get("animation_scene") != new_payload.get("animation_scene"):
         return "animation_scene_modified"
     if old_payload.get("frame_plan") != new_payload.get("frame_plan"):
@@ -3037,6 +3145,13 @@ def render_panel_scene_preview(
     hand_mode = str(renderer_profile.get("hand_mode", "small-hand"))
     if hand_mode == "bare-tip":
         hand_mode = "no-hand"
+    title_card = dict(scene.get("title_card")) if isinstance(scene.get("title_card"), dict) else None
+    title_card_font_path: Path | None = None
+    font_value = (project.get("font_profile") or {}).get("path") if isinstance(project.get("font_profile"), dict) else None
+    if title_card and font_value:
+        title_card_font_path = Path(str(font_value)).expanduser().resolve()
+        if not title_card_font_path.is_file():
+            raise WorkflowError(f"文字卡片字体不存在：{title_card_font_path}")
 
     presenter_manifest_path: Path | None = None
     presenter_profile = project.get("presenter_profile") if isinstance(project.get("presenter_profile"), dict) else {}
@@ -3065,6 +3180,8 @@ def render_panel_scene_preview(
         "fps": fps,
         "cap_long_edge": cap_long_edge,
         "duration_ms": duration_ms,
+        "title_card": title_card,
+        "title_card_font_sha256": digest(title_card_font_path) if title_card_font_path else None,
     }
     cache_key = hashlib.sha256(
         json.dumps(cache_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -3110,6 +3227,13 @@ def render_panel_scene_preview(
         command.extend(["--animation-plan", str(animation_plan_path), "--scene-id", scene_id])
     if presenter_manifest_path:
         command.extend(["--asset-manifest", str(presenter_manifest_path)])
+    if title_card:
+        command.extend([
+            "--title-card-text", str(title_card["text"]),
+            "--title-card-accent", str(title_card.get("accent") or "#356AE6"),
+        ])
+        if title_card_font_path:
+            command.extend(["--title-card-font", str(title_card_font_path)])
 
     temporary = output.with_suffix(".rendering.mp4")
     temporary.unlink(missing_ok=True)
@@ -3399,6 +3523,10 @@ def render(
         effective_annotation_sha256 = hashlib.sha256(effective_annotation_bytes).hexdigest()
         scene_frames = frame_by_scene[scene_id]
         scene_plan = plan_by_scene.get(scene_id, {})
+        title_card = dict(scene.get("title_card")) if isinstance(scene.get("title_card"), dict) else None
+        title_card_cache = copy.deepcopy(title_card)
+        if title_card_cache is not None and font_path:
+            title_card_cache["font_sha256"] = digest(Path(font_path))
         if int(project.get("version", 1)) >= 3 and not scene_plan:
             raise WorkflowError(f"animation-plan.json 缺少 {scene_id}")
         transition = scene_plan.get("transition") if isinstance(scene_plan, dict) else None
@@ -3424,6 +3552,7 @@ def render(
             selected_hand_mode,
             renderer_hash,
             effective_annotation_sha256,
+            title_card_cache,
         )
         cached_entry = next(
             (
@@ -3463,6 +3592,13 @@ def render(
             base_command.extend(["--animation-plan", str(animation_plan_path), "--scene-id", str(scene_id)])
         if presenter_manifest_path:
             base_command.extend(["--asset-manifest", str(presenter_manifest_path)])
+        if title_card:
+            base_command.extend([
+                "--title-card-text", str(title_card["text"]),
+                "--title-card-accent", str(title_card.get("accent") or "#356AE6"),
+            ])
+            if font_path:
+                base_command.extend(["--title-card-font", str(font_path)])
         misses.append({
             "scene_id": scene_id,
             "output": output,
@@ -3853,8 +3989,8 @@ def status(root: Path) -> dict[str, Any]:
         "await-script-style-approval": ["confirmation", "approve script-style", "stage-script"],
         "prepare-script-voice": ["tts", "stage-script-voice"],
         "await-script-voice-approval": ["confirmation", "approve script-voice", "stage-script-voice"],
-        "prepare-boards": ["annotation-template", "add-board", "rebuild-plan", "panel"],
-        "await-boards-approval": ["confirmation", "panel", "preview", "approve boards"],
+        "prepare-boards": ["annotation-template", "add-board", "rebuild-plan", "panel", "pace-annotations"],
+        "await-boards-approval": ["confirmation", "panel", "preview", "approve boards", "pace-annotations"],
         "ready-to-render": ["render"],
         "fix-required": ["render", "panel", "rebuild-plan"],
         "await-final-qa": ["qa", "accept-qa"],
@@ -4024,7 +4160,7 @@ def confirmation_bundle(root: Path) -> dict[str, Any]:
             "next_stage_after_approval": "prepare-boards",
             "instruction": (
                 f"展示口播稿、{(project.get('voice_selection') or {}).get('provider', 'edge')} 试听、"
-                "字幕、分镜和视觉编排；等待用户确认，不生成整板图。"
+                "字幕、分镜、每幕文字卡片和视觉编排；等待用户确认，不生成整板图。"
             ),
             "voice": project.get("voice_selection", {"provider": "edge"}),
             "files": {
@@ -4042,6 +4178,9 @@ def confirmation_bundle(root: Path) -> dict[str, Any]:
                     "narration": scene.get("narration", ""),
                     "time_ms": [scene.get("start_ms"), scene.get("end_ms")],
                     "composition": scene.get("composition"),
+                    "title_card": copy.deepcopy(scene.get("title_card"))
+                    if isinstance(scene.get("title_card"), dict)
+                    else None,
                     "elements": [item.get("label", "") for item in scene.get("elements", []) if isinstance(item, dict)],
                 }
                 for scene in project.get("scenes", [])
@@ -4566,6 +4705,11 @@ def build_parser() -> argparse.ArgumentParser:
     rebuild = sub.add_parser("rebuild-plan", help="检查上游后重建派生动画计划并使旧成片失效")
     rebuild.add_argument("--project", required=True)
 
+    pace = sub.add_parser("pace-annotations", help="根据口播区间自适应拉长手绘时长，消除长静止")
+    pace.add_argument("--project", required=True)
+    pace.add_argument("--ratio", type=float, default=DEFAULT_PACING_RATIO, help="绘制时长占可用窗口的比例（默认 0.72）")
+    pace.add_argument("--scene-id", help="可选仅调整指定场景")
+
     accept_qa = sub.add_parser("accept-qa")
     accept_qa.add_argument("--project", required=True)
     accept_qa.add_argument("--summary", required=True)
@@ -4713,6 +4857,10 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "rebuild-plan":
             rebuild_plan(root)
             print("ANIMATION_PLAN=rebuilt FINAL_CURRENT=false")
+        elif args.command == "pace-annotations":
+            report = pace_annotations_command(root, ratio=args.ratio, scene_id=args.scene_id)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0
         elif args.command == "confirmation":
             print(json.dumps(confirmation_bundle(root), ensure_ascii=False, indent=2))
         elif args.command == "stage-script-voice":

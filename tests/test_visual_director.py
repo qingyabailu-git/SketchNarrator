@@ -104,6 +104,7 @@ class VisualDirectorTests(unittest.TestCase):
                     "start_ms": 0,
                     "end_ms": 2_700,
                     "composition": "causal-chain",
+                    "title_card": {"text": "需求为何增加", "position": "top-left", "style": "outlined-label-v1", "accent": "#356AE6"},
                     "elements": [{"id":"a", "label":"需求", "trigger_text":"因为"}, {"id":"b", "label":"变化", "trigger_text":"增加"}],
                 },
                 {
@@ -127,6 +128,8 @@ class VisualDirectorTests(unittest.TestCase):
         self.assertEqual(plan["summary"]["shot_count"], 2)
         self.assertIn("cause", plan["summary"]["template_counts"])
         self.assertEqual(first["expression_mode"], "native")
+        self.assertEqual(first["title_card"]["text"], "需求为何增加")
+        self.assertEqual(plan["sections"][0]["title_card"], first["title_card"])
         self.assertEqual(
             set(plan["source"]),
             {"project_version", "style_id", "word_count", "mapping"},

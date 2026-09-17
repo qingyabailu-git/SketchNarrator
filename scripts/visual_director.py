@@ -7,6 +7,7 @@ does not generate images or bind the project to a presenter IP.
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import re
@@ -705,6 +706,9 @@ def build_visual_plan(
             "transition_out": None,
             "required_assets": required,
             "fallback": fallback,
+            "title_card": copy.deepcopy(scene.get("title_card"))
+            if isinstance(scene.get("title_card"), dict)
+            else None,
         }
         if duration < MIN_SHOT_MS:
             shot["duration_exception"] = "short-content-section"
@@ -717,6 +721,7 @@ def build_visual_plan(
             "title": _text(scene.get("title")) or section_id,
             "purpose": shot["purpose"],
             "shot_ids": [shot_id],
+            "title_card": copy.deepcopy(shot.get("title_card")),
         })
 
     if require_complete_coverage:
@@ -913,8 +918,8 @@ def render_visual_plan_markdown(plan: dict[str, Any]) -> str:
         "",
         "## 镜头表",
         "",
-        "| 镜头 | 真实时间 | 表达方式 | 模式/类型 | 模板 | 构图 | 目的 | 手绘空间规划 | beats | 素材与降级 |",
-        "|---|---:|---|---|---|---|---|---|---|---|",
+        "| 镜头 | 真实时间 | 文字卡片 | 表达方式 | 模式/类型 | 模板 | 构图 | 目的 | 手绘空间规划 | beats | 素材与降级 |",
+        "|---|---:|---|---|---|---|---|---|---|---|---|",
     ]
     for shot in plan["shots"]:
         beats = "；".join(
@@ -929,6 +934,8 @@ def render_visual_plan_markdown(plan: dict[str, Any]) -> str:
         if shot.get("fallback"):
             assets += f"；fallback→{shot['fallback']['to_shot_type']}（{shot['fallback']['reason']}）"
         actor = "/".join(_md(shot.get(key)) for key in ("actor_slot", "emotion", "action") if shot.get(key)) or "逻辑槽位无"
+        title_card = shot.get("title_card") if isinstance(shot.get("title_card"), dict) else {}
+        title_card_text = str(title_card.get("text") or "无")
         layout = shot.get("layout_plan", {})
         layout_text = (
             "布局=" + str(layout.get("template", "legacy"))
@@ -940,6 +947,7 @@ def render_visual_plan_markdown(plan: dict[str, Any]) -> str:
             + " | ".join([
                 _md(shot["shot_id"]),
                 f"{shot['start_ms']}–{shot['end_ms']}ms",
+                _md(title_card_text),
                 _md(shot.get("expression_mode", "native")),
                 f"{_md(shot['mode'])}/{_md(shot['shot_type'])}",
                 _md(shot["template"]),

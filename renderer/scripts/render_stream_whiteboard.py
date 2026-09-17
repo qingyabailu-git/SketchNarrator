@@ -32,6 +32,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import ImageFont
 
 # 复用 stream 渲染器的全部构件（同目录）
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -41,6 +42,11 @@ from animation_overlay import AnimationOverlay  # noqa: E402
 from presenter_runtime import resolve_presenter_manifest  # noqa: E402
 from pixel_contract import require_ownership, PIXEL_POLICY, region_mask
 from phase_budget import MIN_COLOR_FRAMES, MIN_COLOR_SWEEPS, HAND_RELEASE_MS, phase_frames, compile_budget, frame_span, effective_annotation
+
+_PUBLIC_SCRIPTS_DIR = _SCRIPT_DIR.parents[1] / "scripts"
+if str(_PUBLIC_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_PUBLIC_SCRIPTS_DIR))
+from title_card import render_concept_card  # noqa: E402
 
 DEFAULT_HAND = _SCRIPT_DIR.parent / "assets" / "drawing-hand.png"
 DEFAULT_ERASER = _SCRIPT_DIR.parent / "assets" / "eraser-hand.png"
@@ -233,6 +239,7 @@ class FrameCountWriter:
         *,
         fps: int = 30,
         short_edge: int = 1080,
+        frame_overlay: tuple[np.ndarray, int, int] | None = None,
     ) -> None:
         self.writer = writer
         self.target_frames = target_frames
@@ -241,12 +248,14 @@ class FrameCountWriter:
         self.last_frame: np.ndarray | None = None
         self.last_hand: dict | None = None
         self.hand_qa = HandMotionQATracker(fps, short_edge)
+        self.frame_overlay = frame_overlay
 
     def isOpened(self) -> bool:
         return bool(self.writer.isOpened())
 
     def write(self, frame: np.ndarray, hand: dict | None = None) -> None:
         self.frames_attempted += 1
+        frame = _composite_frame_overlay(frame, self.frame_overlay)
         self.last_frame = frame
         self.last_hand = hand
         if self.target_frames is not None and self.frames_written >= self.target_frames:
@@ -262,6 +271,55 @@ class FrameCountWriter:
                 self.hand_qa.add(self.frames_written, self.last_hand)
                 self.frames_written += 1
         self.writer.release()
+
+
+def _composite_frame_overlay(
+    frame_bgr: np.ndarray,
+    overlay: tuple[np.ndarray, int, int] | None,
+) -> np.ndarray:
+    if overlay is None:
+        return frame_bgr
+    rgba, x, y = overlay
+    if rgba.ndim != 3 or rgba.shape[2] != 4:
+        raise ValueError("文字卡片覆盖层必须是 RGBA 图片")
+    frame = frame_bgr.copy()
+    height, width = rgba.shape[:2]
+    x0, y0 = max(0, x), max(0, y)
+    x1, y1 = min(frame.shape[1], x + width), min(frame.shape[0], y + height)
+    if x1 <= x0 or y1 <= y0:
+        return frame
+    source = rgba[y0 - y:y1 - y, x0 - x:x1 - x]
+    alpha = source[:, :, 3:4].astype(np.float32) / 255.0
+    source_bgr = source[:, :, :3][:, :, ::-1].astype(np.float32)
+    target = frame[y0:y1, x0:x1].astype(np.float32)
+    frame[y0:y1, x0:x1] = np.rint(source_bgr * alpha + target * (1.0 - alpha)).astype(np.uint8)
+    return frame
+
+
+def _build_title_card_overlay(
+    text: str | None,
+    accent: str,
+    font_path: str | None,
+    out_w: int,
+    out_h: int,
+) -> tuple[np.ndarray, int, int] | None:
+    content = " ".join(str(text or "").split())
+    if not content:
+        return None
+    short_edge = min(out_w, out_h)
+    font_size = max(22, round(short_edge * 0.032))
+    font = ImageFont.truetype(font_path, font_size) if font_path else None
+    card = render_concept_card(
+        content,
+        font_size=font_size,
+        font=font,
+        border_width=max(2, round(short_edge * 0.0022)),
+        corner_radius=max(8, round(short_edge * 0.009)),
+        padding_x=max(14, round(short_edge * 0.018)),
+        padding_y=max(8, round(short_edge * 0.008)),
+        accent_bar_color=accent,
+    )
+    return np.asarray(card, dtype=np.uint8), round(out_w * 0.025), round(out_h * 0.028)
 
 
 def _read_asset_manifest(path: Path) -> dict:
@@ -1907,6 +1965,7 @@ class RegionStreamRenderer:
         total_ms: int,
         lead_frames: int = 0,
         target_frames: int | None = None,
+        frame_overlay: tuple[np.ndarray, int, int] | None = None,
     ) -> Path:
         cfg = self.cfg
         elements = sorted(self.ann["elements"], key=lambda e: e["reveal"]["startMs"])
@@ -1916,6 +1975,7 @@ class RegionStreamRenderer:
             target_frames,
             fps=int(cfg.fps),
             short_edge=min(self.out_w, self.out_h),
+            frame_overlay=frame_overlay,
         )
         if not writer.isOpened():
             raise RuntimeError("无法打开视频写入器")
@@ -2179,6 +2239,9 @@ def _parse_args(argv=None):
     p.add_argument("--cap-long-edge", type=int, default=None,
                    help="输出长边像素上限（预览可调小加速，默认 1080）")
     p.add_argument("--profile-json", default=None, help="可选：写入详细阶段耗时 JSON 报告")
+    p.add_argument("--title-card-text", default=None, help="整幕持续显示的左上角重点卡片文字")
+    p.add_argument("--title-card-accent", default="#356AE6", help="文字卡片左侧强调色")
+    p.add_argument("--title-card-font", default=None, help="可选文字卡片字体文件")
     return p.parse_args(argv)
 
 
@@ -2284,7 +2347,18 @@ def main(argv=None) -> int:
           f"绘制编排: {renderer.draw_mode}, 板擦转场: {'on' if transition else 'off'}")
 
     t_render_start = time.perf_counter()
-    renderer.render_to(raw_path, total_ms, args.lead_frames, args.target_frames)
+    try:
+        title_card_overlay = _build_title_card_overlay(
+            args.title_card_text,
+            args.title_card_accent,
+            args.title_card_font,
+            renderer.out_w,
+            renderer.out_h,
+        )
+    except (OSError, ValueError) as exc:
+        print(f"[err] 文字卡片无法生成：{exc}")
+        return 1
+    renderer.render_to(raw_path, total_ms, args.lead_frames, args.target_frames, title_card_overlay)
     t_render_ms = (time.perf_counter() - t_render_start) * 1000.0
 
     t_encode_start = time.perf_counter()
@@ -2309,6 +2383,12 @@ def main(argv=None) -> int:
             "color_fill": cfg.color_fill,
             "color_schedule": renderer.color_schedule,
             "pixel_ownership": renderer.pixel_ownership,
+            "title_card": {
+                "text": args.title_card_text,
+                "accent": args.title_card_accent,
+                "position": "top-left",
+                "style": "outlined-label-v1",
+            } if args.title_card_text else None,
             "ownership_metrics": renderer.ownership_metrics,
             "phase_budget_metrics": renderer.phase_budget_metrics,
             "stroke_metrics": renderer.stroke_metrics,

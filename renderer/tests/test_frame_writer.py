@@ -34,6 +34,20 @@ class FakeWriter:
 
 
 class FrameCountWriterTests(unittest.TestCase):
+    def test_static_title_card_overlay_is_present_on_written_and_padded_frames(self) -> None:
+        delegate = FakeWriter()
+        rgba = np.zeros((1, 1, 4), dtype=np.uint8)
+        rgba[0, 0] = [255, 0, 0, 255]
+        writer = module.FrameCountWriter(
+            delegate,
+            target_frames=2,
+            frame_overlay=(rgba, 0, 0),
+        )
+        writer.write(np.zeros((2, 2, 3), dtype=np.uint8))
+        writer.release()
+        self.assertEqual(delegate.frames[0][0, 0].tolist(), [0, 0, 255])
+        self.assertEqual(delegate.frames[1][0, 0].tolist(), [0, 0, 255])
+
     def test_pads_and_caps_to_exact_frame_budget(self) -> None:
         delegate = FakeWriter()
         writer = module.FrameCountWriter(delegate, target_frames=3)

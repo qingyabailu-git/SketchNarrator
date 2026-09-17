@@ -29,6 +29,41 @@ TTS_SPEC.loader.exec_module(tts_elevenlabs)
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_required_title_cards_are_planned_before_gate_two(self) -> None:
+        project = {
+            "title_card_profile": {
+                "enabled": True,
+                "required_per_scene": True,
+                "accent_palette": ["#356AE6", "#43A85B"],
+                "max_text_chars": 18,
+            }
+        }
+        scenes = [
+            {"id": "scene-01", "title_card": {"text": "紧张如何传到肠道"}},
+            {"id": "scene-02", "title_card": {"text": "身体为何催你排空"}},
+        ]
+
+        compiled = workflow.compile_scene_title_cards(project, scenes)
+
+        self.assertEqual(compiled[0]["title_card"]["accent"], "#356AE6")
+        self.assertEqual(compiled[1]["title_card"]["accent"], "#43A85B")
+        self.assertEqual(compiled[0]["title_card"]["position"], "top-left")
+
+        with self.assertRaisesRegex(workflow.WorkflowError, "scene-02 缺少 title_card.text"):
+            workflow.compile_scene_title_cards(project, [scenes[0], {"id": "scene-02"}])
+
+    def test_panel_cannot_silently_change_approved_title_card(self) -> None:
+        current_scene = {
+            "id": "scene-01", "title": "测试", "narration": "测试口播",
+            "start_ms": 0, "end_ms": 1000, "composition": "center-spoke",
+            "character_ids": [], "title_card": {"text": "原重点"}, "elements": [],
+        }
+        candidate_scene = {**current_scene, "title_card": {"text": "偷偷改掉"}}
+        with self.assertRaisesRegex(workflow.WorkflowError, "title_card"):
+            workflow.validate_panel_storyboard(
+                {"scenes": [candidate_scene]}, {"scenes": [current_scene]}, {"version": 3}
+            )
+
     def test_multiscene_diagnostics_keep_global_word_anchors(self) -> None:
         words = [
             {"text": "先说", "start_ms": 0, "end_ms": 900},
@@ -1067,6 +1102,45 @@ class WorkflowTests(unittest.TestCase):
         words = tts_elevenlabs.alignment_to_words(Alignment())
         self.assertEqual([item["text"] for item in words], ["你", "好", "世", "界"])
         self.assertEqual(words[-1]["end_ms"], 1100)
+
+    def test_pace_annotations_command(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            workflow.init_project(project, "标题", "测试自适应节奏", 60, "warm-pencil")
+            state_file = project / "state.json"
+            state = workflow.read_json(state_file)
+            project_json = workflow.read_json(project / "project.json")
+            project_json["scenes"] = [
+                {
+                    "id": "scene-01",
+                    "start_ms": 0,
+                    "end_ms": 15000,
+                    "elements": [{"id": "1"}, {"id": "2"}],
+                }
+            ]
+            workflow.write_json(project / "project.json", project_json)
+            anno = {
+                "sceneId": "scene-01",
+                "sceneDurationMs": 15000,
+                "elements": [
+                    {"id": "1", "reveal": {"startMs": 100, "durationMs": 1000}},
+                    {"id": "2", "reveal": {"startMs": 8000, "durationMs": 1000}},
+                ],
+            }
+            anno_path = project / "annotations" / "scene-01.annotation.json"
+            anno_path.parent.mkdir(parents=True, exist_ok=True)
+            workflow.write_json(anno_path, anno)
+            state["boards"] = {
+                "scene-01": {"image": "boards/scene-01.png", "annotation": "annotations/scene-01.annotation.json"}
+            }
+            workflow.write_json(state_file, state)
+
+            report = workflow.pace_annotations_command(project, ratio=0.72)
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["total_elements_paced"], 2)
+            updated = workflow.read_json(anno_path)
+            self.assertGreater(updated["elements"][0]["reveal"]["durationMs"], 4000)
+            self.assertGreater(updated["elements"][1]["reveal"]["durationMs"], 3500)
 
 
 if __name__ == "__main__":

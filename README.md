@@ -25,6 +25,7 @@ SketchNarrator 是一个把主题、文案或参考视频转成**中文手绘讲
 | **画面跟着解释展开** | 每幕围绕一个核心意思，先画识别特征与动作，再上基础色、补润色。 |
 | **十种视觉语言** | 根据主题推荐风格，也可以直接指定；同一参考图贯穿生图与画面检查。 |
 | **关键决定由你掌握** | 三次创作确认，让改稿、换声音、调画面发生在合适阶段。 |
+| **每幕重点一眼可见** | 可选左上角文字卡片在分镜阶段设计，并与声音和视觉计划一起确认；它不占用生图额度。 |
 | **可编辑的本地工作台** | 拖动、缩放、增删、排序，逐幕撤销与重做；编辑保存与生产检查分开。 |
 | **有声音的手绘过程** | 内置书写、擦除、换幕、强调、结论音效，低音量配合动作，旁白优先。 |
 | **失败不会推倒重来** | 分镜问题一次列全；配置在绘制前检查；每幕完成后立即留下可核对的渲染缓存。 |
@@ -36,7 +37,7 @@ SketchNarrator 是一个把主题、文案或参考视频转成**中文手绘讲
 flowchart TD
     A[主题 / 文案 / 参考视频 / 本地音视频] --> B[整理口播与推荐画风]
     B --> C{确认 1 · 口播与风格}
-    C --> D[生成配音 · 真实时间轴 · 字幕 · 分镜]
+    C --> D[生成配音 · 真实时间轴 · 字幕 · 分镜 · 每幕重点卡片]
     D --> E{确认 2 · 声音与视觉计划}
     E --> F[内置模型生图 · 检查整板画面]
     F --> G[工作台编辑 · 保存 · 准备执行计划]
@@ -49,7 +50,7 @@ flowchart TD
 | 你确认什么 | Agent 已准备什么 | 确认后做什么 |
 | --- | --- | --- |
 | **① 口播与风格** | 完整文案、推荐画风与理由 | 生成正式声音并取得真实时间 |
-| **② 声音与视觉计划** | 配音试听、字幕、分镜与中文视觉编排表 | 生成整板图并制作标注 |
+| **② 声音与视觉计划** | 配音试听、字幕、分镜、每幕重点卡片与中文视觉编排表 | 生成整板图并制作标注 |
 | **③ 画面与绘制顺序** | 工作台画面、编辑结果、有效执行计划 | 按批准版本正式渲染 |
 
 每个确认点都可以提出修改。保存不等于批准，准备计划也不增加第四次确认；内部 QA 由 Agent 执行。参考范围、额外付费服务或依赖安装授权是独立的使用选择，不冒充创作确认。
@@ -212,6 +213,7 @@ It is designed for science explainers, lessons, product explanations, stories an
 | Drawing that explains | Complete recognition and action lines, add base color, then optional polish for each object. |
 | Ten visual styles | Pick a reference or let the agent recommend one for your topic. |
 | Three creative approvals | Review the script, then the voice and plan, then the board and drawing order. |
+| Per-scene focus cards | Plan an optional top-left focus label with each scene and approve it with the voice and visual plan, without spending image-generation quota. |
 | Editable local workbench | Move, resize, add, remove and reorder regions, with per-scene undo and redo. |
 | Built-in sound design | Writing, erasing, transitions, emphasis and conclusion cues keep narration in focus. |
 | Fail without restarting | Storyboard issues are reported together, configuration is checked before drawing, and each completed scene is cached immediately. |
@@ -223,7 +225,7 @@ It is designed for science explainers, lessons, product explanations, stories an
 flowchart TD
     A[Topic / script / reference / local media] --> B[Script and style recommendation]
     B --> C{Approval 1 · Script and style}
-    C --> D[Voice · real timestamps · captions · storyboard]
+    C --> D[Voice · real timestamps · captions · storyboard · focus cards]
     D --> E{Approval 2 · Voice and visual plan}
     E --> F[Built-in image generation · board review]
     F --> G[Workbench edits · save · prepare execution plan]
@@ -236,7 +238,7 @@ flowchart TD
 | Approval | What you review | What happens next |
 | --- | --- | --- |
 | 1 | Full script, style recommendation and rationale | Generate narration and measure its timing |
-| 2 | Voice sample, captions, storyboard and visual plan | Generate and annotate boards |
+| 2 | Voice sample, captions, storyboard, per-scene focus cards and visual plan | Generate and annotate boards |
 | 3 | Workbench edits and the current execution plan | Render the approved version |
 
 Saving is not approval. Preparing a plan does not introduce a fourth approval. Internal QA is handled by the agent. Reference scope, installation permissions and optional paid services are separate choices.

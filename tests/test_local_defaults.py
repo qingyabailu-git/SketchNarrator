@@ -37,6 +37,11 @@ class LocalDefaultsTests(unittest.TestCase):
                     "caption_font": {"family": "Test Family", "style": "Bold", "path": "caption.ttf"},
                 },
                 "bookends": {"intro": "intro.mp4", "outro": "outro.mp4"},
+                "title_cards": {
+                    "enabled": True,
+                    "required_per_scene": True,
+                    "accent_palette": ["#356AE6", "#43A85B"],
+                },
             }), encoding="utf-8")
             project = {"renderer_profile": {}, "sfx_profile": {"enabled": True}}
             with patch.dict(os.environ, {}, clear=True):
@@ -45,6 +50,8 @@ class LocalDefaultsTests(unittest.TestCase):
             self.assertEqual(result["renderer_profile"]["presenter_manifest"], str(presenter.resolve()))
             self.assertEqual(result["font_profile"]["style"], "Bold")
             self.assertEqual(result["bookends"]["intro"], str(intro.resolve()))
+            self.assertTrue(result["title_card_profile"]["required_per_scene"])
+            self.assertEqual(result["title_card_profile"]["accent_palette"][1], "#43A85B")
             self.assertNotIn("bookends", project)
 
     def test_explicit_environment_path_overrides_workspace_discovery(self) -> None:

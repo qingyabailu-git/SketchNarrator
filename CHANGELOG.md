@@ -1,5 +1,9 @@
 # Changelog
 
+- Promote optional per-scene title cards into the storyboard, Gate 2 confirmation, visual plan, render cache, panel preview, and final scene renderer. External private settings may require a card for every scene without embedding private values in the public package.
+- Add adaptive duration pacing solver (`scripts/pacing.py` and `workflow.py pace-annotations`): dynamically stretch element drawing durations across voiceover intervals (default 72% drawing + 28% hold) to eliminate rushed 1.2s bursts and long dead pauses.
+- Add idle pacing advisory warning to `board_qa.py` when element drawing duration is disproportionately short compared to available voiceover window.
+
 ## 0.1.1 - 2026-09-15
 
 - Separate isolated scene diagnostics from whole-timeline coverage validation so multi-scene Gate 2 compilation preserves global word anchors without falsely requiring every scene to cover the complete narration.
