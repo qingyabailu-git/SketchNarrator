@@ -291,7 +291,7 @@ def check_scene(
                 available = (next_start - start) if isinstance(next_start, int) else 0
             else:
                 available = max(0, scene_dur - start)
-            if available >= 4000 and duration < available * 0.35:
+            if available >= 3000 and duration < available * 0.55:
                 warnings.append(
                     f"元素 {element.get('sequence')} 绘制时长 {duration}ms 明显偏短（可用窗口 {available}ms，闲置率过高），建议使用 pace-annotations 自适应延长"
                 )

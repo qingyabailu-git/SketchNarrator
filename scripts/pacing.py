@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_PACING_RATIO = 0.72
-DEFAULT_MIN_DURATION_MS = 1800
-DEFAULT_MAX_DURATION_MS = 8500
-DEFAULT_MIN_HOLD_MS = 600
+DEFAULT_PACING_RATIO = 0.92
+DEFAULT_MIN_DURATION_MS = 1500
+DEFAULT_MAX_DURATION_MS = 25000
+DEFAULT_MIN_HOLD_MS = 250
 
 
 def calculate_adaptive_durations(
@@ -64,10 +64,10 @@ def calculate_adaptive_durations(
                 dur = max(100, available)
         else:
             available = max(0, scene_duration_ms - st)
-            target = int(round(available * max(0.50, ratio - 0.05)))
+            target = int(round(available * max(0.60, ratio - 0.02)))
             dur = max(min_ms, min(target, max_ms))
 
-            end_reserve = max(min_hold_ms * 2, 1200)
+            end_reserve = max(min_hold_ms * 2, 450)
             if available > min_ms + end_reserve:
                 dur = min(dur, available - end_reserve)
             elif available > min_ms + min_hold_ms:

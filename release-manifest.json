@@ -466,7 +466,7 @@
     },
     {
       "path": "scripts/board_qa.py",
-      "sha256": "bb2ffb61411a6d059fa04a180e9460d3d5c439915e8417dfd91e80ec130ff94e",
+      "sha256": "0d3303d1b427c8bc1cd345cfd9ff63fa00febb40e5210b93e76fc730ff6d7879",
       "bytes": 21054
     },
     {
@@ -506,7 +506,7 @@
     },
     {
       "path": "scripts/pacing.py",
-      "sha256": "e0e9a4c5b2868c4cedfea7a2a96705f0f7595e03f7a077629ccbf8933cbb2958",
+      "sha256": "c1c38defbb2136acd0eb0e78afacba68d597bb944bb034e721ca543ff8622fec",
       "bytes": 6126
     },
     {
@@ -661,8 +661,8 @@
     },
     {
       "path": "tests/test_pacing.py",
-      "sha256": "262403c94082277a5cbd2b9a1df2e2127f889fb86f090545a09ed5284ca5d12c",
-      "bytes": 3380
+      "sha256": "5e3316d3e428f95f73d5999c7c4c743dfbd0d7f10ec469a06ee5b0e3463b71b9",
+      "bytes": 4043
     },
     {
       "path": "tests/test_package_release.py",

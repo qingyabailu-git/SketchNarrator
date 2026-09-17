@@ -36,7 +36,19 @@ class PacingTests(unittest.TestCase):
 
         # e3 (last) window: 24000 - 16000 = 8000 ms
         self.assertGreater(paced[2]["reveal"]["durationMs"], 4000)
-        self.assertLessEqual(paced[2]["reveal"]["startMs"] + paced[2]["reveal"]["durationMs"], 24000 - 600)
+        self.assertLessEqual(paced[2]["reveal"]["startMs"] + paced[2]["reveal"]["durationMs"], 24000 - 450)
+
+    def test_calculate_adaptive_durations_default_ratio(self) -> None:
+        elements = [
+            {"id": "e1", "sequence": 1, "reveal": {"startMs": 100, "durationMs": 1200}},
+            {"id": "e2", "sequence": 2, "reveal": {"startMs": 5000, "durationMs": 1200}},
+        ]
+        scene_dur = 10000
+        paced = calculate_adaptive_durations(elements, scene_dur)
+        # Default ratio is 0.92: window 4900 -> dur min(4508, 4900-250=4650) = 4508
+        self.assertEqual(paced[0]["reveal"]["durationMs"], 4508)
+        # Last element: window 5000 -> dur min(4500, 5000-450=4550) = 4500
+        self.assertEqual(paced[1]["reveal"]["durationMs"], 4500)
 
     def test_calculate_adaptive_durations_single_element(self) -> None:
         elements = [
