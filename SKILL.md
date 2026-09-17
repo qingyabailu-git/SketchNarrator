@@ -65,7 +65,7 @@ Python 与依赖采用最低版本要求，不预设未来版本上限。新环�
 - `presenter` 从 `renderer/assets/presenter.json` 或 `SKETCHNARRATOR_PRESENTER_MANIFEST` 读取用户有权使用的资产包。角色身份约束、禁止镜像等规则属于具体资产包，而不是公开核心的硬编码。笔尖、板擦使用真实归一化锚点；极端边缘无法完整显示时整层隐藏。固定开场与结尾模板仍由 `render_presenter_bookend.py` 生成无声片段；只有外部本机配置声明的固定视频，才会在正式渲染时按真实主片时长自动接入，且不提前改变三次确认门禁。
 - 新计划取消局部轮廓描边、局部染色高亮和流光效果。逐对象绘制完成后稳定停留；只有明确聚焦意图和足够真实时间才允许一次 focus-push。必要的收笔撤手时间必须保留，可选效果不得挤占它或造成 QA 失败。
 - `animation-plan.json` 的事件 `startMs/endMs` 使用幕内相对时间，板擦转场使用全片绝对逐词时间。V3.3 的同一转场同时保存在 `scenes[].transition` 与顶层 `transitions[]`，两份必须逐字段一致；控制台可以按幕内时间显示，但保存时必须转换回绝对时间并同步两份数据。
-- 脚本/正式配音锁定后自动生成独立的 `visual-plan.json` 与 `visual-plan.md`。它只规划 section、shot、beat、A/B-roll、模板、构图、节奏、动画触发和素材需求，不直接生图，也不绑定尚未确定的 presenter IP。
+- 脚本/正式配音锁定后自动生成独立的 `visual-plan.json` 与 `visual-plan.md`。它只规划 section、shot、beat、A/B-roll、模板、构图、节奏、动画触发和素材需求，不直接生图，也不绑定尚未确定的 presenter IP。每个 shot 的首个 beat 是开场锚点，默认在本幕开始后约 100ms 启动，推荐不超过 200ms，硬上限为 500ms；其后的 beat 继续回指真实逐词时间。
 - `visual-plan.json` 为每幕记录原生手绘表达和统一 `layout_plan`。先按 [统一视觉语言规范](references/unified-visual-language.md) 完成语义分解、时间预算和空间分配，再生成整板图；`native_regions` 与底部 `caption_region` 必须在同一个归一化坐标系内预先确定。默认 Edge、可选 Azure/ElevenLabs 和网络素材提取的数据与联网边界以 README/SECURITY 为准。
 - 支持 `a_host`、`a_reaction`、`b_whiteboard`、`b_infographic`、`b_screenshot`、`b_text`；没有 presenter 素材时，前两者确定性降级为 `b_text` 或 `b_whiteboard`。截图/录屏缺失时必须列入素材需求或走明确 fallback，禁止伪造界面。
 - 第一版模板包括 `question`、`focus`、`three-items`、`comparison`、`cause`、`process`、`timeline`、`summary`。所有 shot/beat 时间都回指锁定后的 `words.json` 真实边界，不能按字数估算。

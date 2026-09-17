@@ -37,6 +37,7 @@ from animation_plan import (
     transition_plan,
 )
 from visual_director import (
+    OPENING_ANCHOR_MAX_MS,
     VisualPlanError,
     build_visual_plan,
     render_visual_plan_markdown,
@@ -868,6 +869,14 @@ def validate_annotation(data: dict[str, Any], expected_scene: dict[str, Any] | N
         raise WorkflowError("标注必须包含 elements")
     if data.get("status") == "draft":
         raise WorkflowError("标注仍为 draft；请实际查看图片并完成区域和绘制时序")
+    first_reveal = elements[0].get("reveal") if isinstance(elements[0], dict) else None
+    if isinstance(first_reveal, dict):
+        first_start = first_reveal.get("startMs")
+        if isinstance(first_start, int) and first_start > OPENING_ANCHOR_MAX_MS:
+            raise WorkflowError(
+                f"首个可见元素必须在幕开始后 {OPENING_ANCHOR_MAX_MS}ms 内起笔；"
+                f"当前为 {first_start}ms"
+            )
     ids = [str(e.get("id") or "") if isinstance(e, dict) else "" for e in elements]
     if any(not key for key in ids) or len(ids) != len(set(ids)):
         raise WorkflowError("语义元素 id 必须非空且唯一，从分镜到标注保持不变")

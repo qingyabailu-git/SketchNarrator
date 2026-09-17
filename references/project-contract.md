@@ -319,7 +319,9 @@ V3.3 绝对板擦时间；`emphasis` 或 `conclusion` 只来自已经进入渲�
     "beats": [{
       "beat_id": "scene-01-shot-01-beat-01",
       "trigger_phrase_id": "w-0001",
-      "start_ms": 120,
+      "trigger_window_ms": {"start_ms": 120, "end_ms": 288},
+      "mapping": "opening-anchor",
+      "start_ms": 220,
       "end_ms": 288,
       "action": "reveal",
       "target": "cause",
@@ -332,7 +334,7 @@ V3.3 绝对板擦时间；`emphasis` 或 `conclusion` 只来自已经进入渲�
 }
 ```
 
-镜头的 `start_ms/end_ms`、`start_phrase_id/end_phrase_id` 和 beat 时间必须逐项回指 `words.json` 的真实词边界。普通镜头短于约 2 秒时必须带明确的短内容例外；超过约 12–15 秒必须有内部 beat；连续三个镜头不得完全复用模板与构图；同时运动主体最多两个。`a_host/a_reaction` 只保存 `actor_slot`、`emotion`、`action` 等逻辑槽位。缺 presenter 素材时确定性降级到 `b_text` 或 `b_whiteboard`；截图/录屏缺失时必须记录 `required_assets` 或 fallback，不能伪造界面。
+镜头的 `start_ms/end_ms`、`start_phrase_id/end_phrase_id` 必须回指 `words.json` 的真实词边界。每个 shot 的首个 beat 使用 `mapping: opening-anchor`，其 `start_ms` 相对镜头起点推荐不超过 200ms，硬上限为 500ms，仍可保留 `trigger_window_ms` 回指语义触发词；其余 beat 的时间必须严格回指真实词边界。普通镜头短于约 2 秒时必须带明确的短内容例外；超过约 12–15 秒必须有内部 beat；连续三个镜头不得完全复用模板与构图；同时运动主体最多两个。`a_host/a_reaction` 只保存 `actor_slot`、`emotion`、`action` 等逻辑槽位。缺 presenter 素材时确定性降级到 `b_text` 或 `b_whiteboard`；截图/录屏缺失时必须记录 `required_assets` 或 fallback，不能伪造界面。
 
 `expression_mode` 固定为 `native`。每个 shot 都必须先生成 `layout_plan`，让 `native_regions` 和 `caption_region` 在整板图之前使用同一归一化坐标系完成空间分工。基础布局及自定义区域规则见 [空间规划](unified-visual-language.md#生图前选布局)。每个区域对应一个完整绘制单元，规划不能代替生图后的真实标注。视觉 beat 必须逐项绑定当前 shot 和真实 `words.json` 词边界。
 

@@ -123,7 +123,11 @@ class VisualDirectorTests(unittest.TestCase):
         self.assertEqual(first["start_ms"], words[0]["start_ms"])
         self.assertEqual(first["end_ms"], words[2]["end_ms"])
         self.assertEqual(first["start_phrase_id"], "w-0001")
-        self.assertEqual(first["beats"][0]["start_ms"], words[0]["start_ms"])
+        self.assertEqual(
+            first["beats"][0]["start_ms"],
+            words[0]["start_ms"] + visual_director.OPENING_ANCHOR_START_MS,
+        )
+        self.assertEqual(first["beats"][0]["mapping"], "opening-anchor")
         self.assertEqual(second["start_ms"], words[3]["start_ms"])
         self.assertEqual(plan["summary"]["shot_count"], 2)
         self.assertIn("cause", plan["summary"]["template_counts"])
@@ -149,6 +153,53 @@ class VisualDirectorTests(unittest.TestCase):
         self.assertNotIn("动态覆盖层", markdown)
         visual_director.validate_visual_plan(plan, words)
 
+    def test_late_first_trigger_still_starts_drawing_at_scene_opening(self) -> None:
+        words = words_for_scene(0, ["先", "说", "背景", "然后", "画图"], 900)
+        project = {
+            "version": 3,
+            "scenes": [{
+                "id": "scene-01",
+                "narration": "先说背景然后画图",
+                "start_ms": 0,
+                "end_ms": 4_500,
+                "elements": [{
+                    "id": "late",
+                    "label": "后出现的对象",
+                    "trigger_text": "画图",
+                }],
+            }],
+        }
+        plan = visual_director.build_visual_plan(project, words)
+        beat = plan["shots"][0]["beats"][0]
+        self.assertEqual(beat["trigger_text"], "画图")
+        self.assertEqual(beat["start_ms"], visual_director.OPENING_ANCHOR_START_MS)
+        self.assertEqual(beat["mapping"], "opening-anchor")
+        self.assertEqual(beat["trigger_window_ms"]["start_ms"], words[4]["start_ms"])
+
+    def test_opening_anchor_over_hard_limit_is_rejected(self) -> None:
+        words = words_for_scene(0, ["先", "说", "背景", "然后", "画图"], 900)
+        project = {
+            "version": 3,
+            "scenes": [{
+                "id": "scene-01",
+                "narration": "先说背景然后画图",
+                "start_ms": 0,
+                "end_ms": 4_500,
+                "elements": [{
+                    "id": "late",
+                    "label": "后出现的对象",
+                    "trigger_text": "画图",
+                }],
+            }],
+        }
+        plan = visual_director.build_visual_plan(project, words)
+        broken = copy.deepcopy(plan)
+        broken["shots"][0]["beats"][0]["start_ms"] = (
+            plan["shots"][0]["start_ms"] + visual_director.OPENING_ANCHOR_MAX_MS + 1
+        )
+        with self.assertRaisesRegex(visual_director.VisualPlanError, "开场锚点"):
+            visual_director.validate_visual_plan(broken, words)
+
     def test_coverage_rejects_missing_or_repeated_word(self) -> None:
         words = words_for_scene(0, ["一", "二", "三"], 900)
         project = {
@@ -169,7 +220,10 @@ class VisualDirectorTests(unittest.TestCase):
             "version": 3,
             "scenes": [{
                 "id": "scene-01", "narration": "长镜头需要真实节奏变化", "start_ms": 0, "end_ms": 15_000,
-                "elements": [{"id":"focus", "label":"核心", "trigger_text":"真实"}],
+                "elements": [
+                    {"id":"focus", "label":"核心", "trigger_text":"真实"},
+                    {"id":"detail", "label":"变化", "trigger_text":"变化"},
+                ],
             }],
         }
         plan = visual_director.build_visual_plan(project, words)

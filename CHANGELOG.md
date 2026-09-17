@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-09-17
+
+- Add an explicit opening-anchor beat to every visual shot. The first visible element now starts about 100ms after the scene begins instead of waiting for a later semantic trigger word.
+- Recommend opening strokes within 200ms and reject plans or annotations whose first visible element starts more than 500ms after the scene begins.
+- Mirror the opening-anchor check in board QA, including a non-blocking advisory between 200ms and 500ms and a hard error beyond 500ms.
+- Document the opening-anchor contract across the skill entrypoint, visual-production guide, final QA guide, and project file contract.
+
 ## 0.1.2 - 2026-09-17
 
 - Add adaptive duration pacing solver (`scripts/pacing.py` and `workflow.py pace-annotations`): dynamically stretch element drawing durations across voiceover intervals (default 72% drawing + 28% hold) to eliminate rushed 1.2s bursts and long dead pauses.

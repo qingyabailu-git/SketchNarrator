@@ -54,6 +54,10 @@ COMPOSITIONS = {
 MIN_SHOT_MS = 2_000
 LONG_SHOT_BEAT_MS = 12_000
 MIN_TRANSITION_PAUSE_MS = 300
+OPENING_ANCHOR_START_MS = 100
+OPENING_ANCHOR_RECOMMENDED_MS = 200
+OPENING_ANCHOR_MAX_MS = 500
+OPENING_ANCHOR_MAPPING = "opening-anchor"
 PUNCTUATION = "，。！？；：、,.!?;:"
 
 MOTION_ROLE_TERMS = {
@@ -437,6 +441,29 @@ def _explicit_beats(
     return result
 
 
+def _apply_opening_anchor(
+    beats: list[dict[str, Any]],
+    shot_start_ms: int,
+    shot_end_ms: int,
+) -> None:
+    """Keep the first visible stroke independent from its semantic trigger word."""
+    if not beats:
+        return
+    first = beats[0]
+    trigger_start = int(first.get("start_ms", shot_start_ms))
+    trigger_end = int(first.get("end_ms", trigger_start))
+    anchor_start = min(shot_start_ms + OPENING_ANCHOR_START_MS, max(shot_start_ms, shot_end_ms - 1))
+    first["mapping"] = OPENING_ANCHOR_MAPPING
+    first["trigger_window_ms"] = {
+        "start_ms": trigger_start,
+        "end_ms": trigger_end,
+    }
+    first["start_ms"] = anchor_start
+    first["end_ms"] = max(trigger_end, min(shot_end_ms, anchor_start + 50))
+    if int(first["end_ms"]) <= int(first["start_ms"]):
+        first["end_ms"] = min(shot_end_ms, anchor_start + 1)
+
+
 def _make_beats(
     shot_id: str,
     scene: dict[str, Any],
@@ -457,8 +484,18 @@ def _make_beats(
             if not matched:
                 raise VisualPlanError(f"{shot_id} 元素 {element.get('id') or element.get('label')} 缺少唯一语义触发短句；请补 trigger_text 或显式 visual_beats 的真实词 ID，禁止平均分配时间")
             beats.append(_make_beat(shot_id, words, matched, ordinal, element))
+    _apply_opening_anchor(
+        beats,
+        int(words[scene_indices[0]]["start_ms"]),
+        int(words[scene_indices[-1]]["end_ms"]),
+    )
     if shot_duration > LONG_SHOT_BEAT_MS:
-        internal = [beat for beat in beats if int(beat["start_ms"]) > int(words[scene_indices[0]]["start_ms"]) and int(beat["start_ms"]) < int(words[scene_indices[-1]]["end_ms"])]
+        internal = [
+            beat for beat in beats
+            if beat.get("mapping") != OPENING_ANCHOR_MAPPING
+            and int(beat["start_ms"]) > int(words[scene_indices[0]]["start_ms"])
+            and int(beat["start_ms"]) < int(words[scene_indices[-1]]["end_ms"])
+        ]
         if not internal:
             raise VisualPlanError(f"{shot_id} 长镜头缺少内部语义节拍；请提供真实触发短句，不能自动在中点添加强调")
     return beats
@@ -784,7 +821,12 @@ def _validate_beats(shot: dict[str, Any], words: list[dict[str, Any]]) -> None:
         start, end = beat.get("start_ms"), beat.get("end_ms")
         if not isinstance(start, int) or not isinstance(end, int) or end < start:
             raise VisualPlanError(f"{shot['shot_id']} 的 beat 时间无效")
-        if start < int(word["start_ms"]) or end > int(word["end_ms"]):
+        if beat.get("mapping") == OPENING_ANCHOR_MAPPING:
+            if start - int(shot["start_ms"]) > OPENING_ANCHOR_MAX_MS:
+                raise VisualPlanError(
+                    f"{shot['shot_id']} 的开场锚点晚于 {OPENING_ANCHOR_MAX_MS}ms"
+                )
+        elif start < int(word["start_ms"]) or end > int(word["end_ms"]):
             raise VisualPlanError(f"{shot['shot_id']} 的 beat 早于或超出真实口播边界")
         if start < int(shot["start_ms"]) or end > int(shot["end_ms"]):
             raise VisualPlanError(f"{shot['shot_id']} 的 beat 超出镜头边界")
@@ -861,6 +903,13 @@ def validate_visual_plan(
         start_ms, end_ms = shot.get("start_ms"), shot.get("end_ms")
         if start_ms != prepared[start_index]["start_ms"] or end_ms != prepared[end_index]["end_ms"] or end_ms <= start_ms:
             raise VisualPlanError(f"{shot_id} 的时间不是由真实 words 边界决定")
+        beats = shot.get("beats")
+        if isinstance(beats, list) and beats and beats[0].get("mapping") == OPENING_ANCHOR_MAPPING:
+            opening_delay = int(beats[0].get("start_ms", start_ms)) - int(start_ms)
+            if opening_delay > OPENING_ANCHOR_MAX_MS:
+                raise VisualPlanError(
+                    f"{shot_id} 的开场锚点在幕开始后 {opening_delay}ms，超过 {OPENING_ANCHOR_MAX_MS}ms"
+                )
         ranges.append((start_index, end_index))
         if end_ms - start_ms < MIN_SHOT_MS and not shot.get("duration_exception"):
             raise VisualPlanError(f"{shot_id} 短于 {MIN_SHOT_MS}ms 但未标注例外")

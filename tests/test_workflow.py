@@ -977,6 +977,22 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(workflow.WorkflowError):
             workflow.validate_annotation(data)
 
+    def test_annotation_enforces_opening_anchor_hard_limit(self) -> None:
+        data = {
+            "canvas": {"width": 100, "height": 100},
+            "sceneDurationMs": 2000,
+            "elements": [{
+                "id": "opening",
+                "sequence": 1,
+                "region": {"x": 0, "y": 0, "width": 40, "height": 40},
+                "reveal": {"startMs": 501, "durationMs": 500},
+            }],
+        }
+        with self.assertRaisesRegex(workflow.WorkflowError, "500ms"):
+            workflow.validate_annotation(data)
+        data["elements"][0]["reveal"]["startMs"] = 500
+        workflow.validate_annotation(data)
+
     def test_annotation_accepts_spatial_overlap_without_manual_protection(self) -> None:
         data = {
             "canvas": {"width": 100, "height": 100}, "sceneDurationMs": 1000,

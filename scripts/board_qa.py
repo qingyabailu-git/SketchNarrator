@@ -22,6 +22,8 @@ from pixel_contract import resolve_ownership, foreground_from_rgb, PIXEL_POLICY
 from phase_budget import effective_annotation
 
 STYLE_REGISTRY_PATH = Path(__file__).parents[1] / "references" / "style-registry.json"
+OPENING_ANCHOR_RECOMMENDED_MS = 200
+OPENING_ANCHOR_MAX_MS = 500
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -267,6 +269,20 @@ def check_scene(
     elements = annotation.get("elements", [])
     if not 1 <= len(elements) <= 6:
         errors.append("每幕应有 1–6 个按语义自适应的可独立绘制元素")
+    if elements and isinstance(elements[0], dict):
+        first_reveal = elements[0].get("reveal", {})
+        first_start = first_reveal.get("startMs") if isinstance(first_reveal, dict) else None
+        if isinstance(first_start, int):
+            if first_start > OPENING_ANCHOR_MAX_MS:
+                errors.append(
+                    f"首个可见元素在幕开始后 {first_start}ms 起笔，超过 "
+                    f"{OPENING_ANCHOR_MAX_MS}ms 上限"
+                )
+            elif first_start > OPENING_ANCHOR_RECOMMENDED_MS:
+                warnings.append(
+                    f"首个可见元素在幕开始后 {first_start}ms 起笔，建议控制在 "
+                    f"{OPENING_ANCHOR_RECOMMENDED_MS}ms 内"
+                )
 
     regions: list[dict[str, int]] = []
     region_elements: list[dict[str, Any]] = []

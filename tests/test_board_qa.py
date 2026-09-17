@@ -64,6 +64,26 @@ class BoardQaTests(unittest.TestCase):
             self.assertTrue(result["ok"], result["errors"])
             self.assertEqual(result["uncovered_foreground_pixels"], 0)
 
+    def test_opening_anchor_late_start_is_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            record = self._fixture(root, top=2)
+            annotation_path = root / record["annotation"]
+            annotation = json.loads(annotation_path.read_text(encoding="utf-8"))
+            annotation["elements"][0]["reveal"]["startMs"] = 501
+            annotation["elements"][0]["reveal"]["durationMs"] = 250
+            annotation_path.write_text(json.dumps(annotation), encoding="utf-8")
+            result = board_qa.check_scene(root, {"id": "scene-01"}, record)
+            self.assertFalse(result["ok"])
+            self.assertTrue(any("500ms" in error for error in result["errors"]))
+
+            annotation["elements"][0]["reveal"]["startMs"] = 300
+            annotation["elements"][0]["reveal"]["durationMs"] = 450
+            annotation_path.write_text(json.dumps(annotation), encoding="utf-8")
+            result = board_qa.check_scene(root, {"id": "scene-01"}, record)
+            self.assertTrue(result["ok"], result["errors"])
+            self.assertTrue(any("建议控制在 200ms" in warning for warning in result["warnings"]))
+
     def test_explicit_masks_allow_spatial_overlap(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
