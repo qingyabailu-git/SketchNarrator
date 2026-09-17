@@ -671,8 +671,8 @@
     },
     {
       "path": "tests/test_panel_dom_security.py",
-      "sha256": "ff16ca6ef0584bc35cc7c3355a73309c09dd525dae4e975ba633d0fb449378ff",
-      "bytes": 18883
+      "sha256": "ee7177d60bc10be27e127945795606ee56b85a9140913e43e20078588685806f",
+      "bytes": 19565
     },
     {
       "path": "tests/test_panel_server.py",
