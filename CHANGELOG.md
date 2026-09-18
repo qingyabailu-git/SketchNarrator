@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 - 2026-09-18
+
+- Fix compact ink stroke erosion during Zhang-Suen skeletonization: recover isolated compact ink components (such as eye pupils, dots, and small facial features) via `_recover_compact_ink_strokes` and promote core short strokes to `short_identity` in semantic stroke planning.
+- Add `ink_color_mode` (default `"source"`, fallback `"monochrome"`): sample original artwork RGB colors for line drawing in light whiteboard mode, faithfully preserving golden sparks, red warnings, green neural paths, and blue accents instead of forcing monochrome thresholding.
+- Integrate `ink_color_mode` across `stream_render.py`, `render_stream_whiteboard.py`, and `workflow.py` render pipelines with deterministic cache invalidation.
+
 ## 0.1.3 - 2026-09-17
 
 - Add an explicit opening-anchor beat to every visual shot. The first visible element now starts about 100ms after the scene begins instead of waiting for a later semantic trigger word.

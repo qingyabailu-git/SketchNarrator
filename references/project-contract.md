@@ -127,6 +127,7 @@ V3 新项目必须保存注册风格、渲染配置和语义动画约束：
   "style_id": "warm-pencil",
   "renderer_profile": {
     "ink_path": "skeleton",
+    "ink_color_mode": "source",
     "stroke_planner": "semantic-v2",
     "color_fill": "local-brush",
     "hand_mode": "small-hand",
@@ -430,6 +431,18 @@ V1/V2 旧项目不要求 `animation-plan.json`，缺失时采用无语义动画�
 对象身份由分镜 ID 和明确掩码决定。默认 `layered + semantic-v2 + object-progressive-v1` 先描结构与识别、动作支撑，再以真实手部横向往返上基础色，最后润色。兼容比例字段不覆盖计划的整数帧预算。
 
 新渲染 profile 的每个对象记录 `stage_order`、`total_strokes`、`traced_hand_strokes` 与 `deferred_strokes`。`traced_hand_strokes` 必须等于 `total_strokes`，`deferred_strokes` 必须为 0；不再存在代表性笔画删减、扫描揭图或因果前沿。`color_metrics.object_records` 逐对象记录 `elementId`、`colorPixels`、`sweeps` 和 `baseColorFrames`；有待填色像素的对象至少三次描绘且基础色至少 8 帧，无待填色像素的对象记录零次。总次数仅用于统计，不能替代逐对象检查；`motion_plans` 中的填色策略为 `serpentine-flat-fill-v1`；最终填色后整板像素仍必须与原图一致。
+
+### 渲染配置（renderer_profile）
+
+`renderer_profile` 决定落墨骨架、线条色彩模式、笔画规划与手部呈现：
+- `ink_path`：起笔段笔迹路径生成算法，默认为 `skeleton`（骨架像素追踪，更精准贴合线条）；可选 `grid`（网格中心插值）。
+- `ink_color_mode`：墨线色彩模式，默认为 `source`（保留线条内部原画 RGB 色彩，边缘仍受二值掩模约束）；可选 `monochrome`（经典二值化纯黑）。
+- `stroke_planner`：笔画顺序规划，默认为 `semantic-v2`（主体/组件/关键轮廓优先）；可选 `reading-bands-v1`。
+- `color_fill`：上色方式，默认为 `local-brush`（逐对象局部手刷）；可选 `brush` 或 `contour-wipe`。
+- `draw_mode`：绘制编排模式，默认为 `layered`（分层递进）；可选 `legacy`。
+- `hand_mode`：手部模式，默认为 `small-hand`；可选 `presenter`、`no-hand`、`full-hand`。
+- `color_reserve_ratio`：整幕基础色预留时间目标比例，默认 `0.32`。
+- `minimum_color_ms`：最小上色预留时间（毫秒），默认 `900`。
 
 ### 手部与板擦
 

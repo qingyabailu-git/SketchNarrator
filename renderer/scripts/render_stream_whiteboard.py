@@ -786,7 +786,10 @@ def _prepare_style_ink_maps(
         thresh_map = cv2.adaptiveThreshold(
             gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 10
         )
-        ink_paint = np.repeat(thresh_map[:, :, None], 3, axis=2).astype(np.float32)
+        if getattr(cfg, "ink_color_mode", "source") == "monochrome":
+            ink_paint = np.repeat(thresh_map[:, :, None], 3, axis=2).astype(np.float32)
+        else:
+            ink_paint = color_img.astype(np.float32)
     ink_pixels = thresh_map < cfg.ink_threshold
     return thresh_map, ink_pixels, ink_paint, dark_mode, background_bgr
 
@@ -864,6 +867,7 @@ class RegionStreamRenderer:
             target_hand_height = max(1, round(FULL_HAND_REFERENCE_HEIGHT * short_edge / 1080))
         cfg = replace(cfg, target_hand_height=target_hand_height)
         self.cfg = cfg
+        self.ink_color_mode = getattr(cfg, "ink_color_mode", "source")
 
         # 标注画布坐标 → 输出坐标的缩放比
         cw = annotation["canvas"]["width"]
@@ -1144,7 +1148,7 @@ class RegionStreamRenderer:
         return sr.flatten_streams(streams)
 
     def _extract_region_skeleton_strokes(self, allowed: np.ndarray) -> list[list[tuple[int, int]]]:
-        """骨架模式：区域内墨迹细化 + 8 邻接追踪 + 重采样平滑。"""
+        """骨架模式：区域内墨迹细化 + 8 邻接追踪 + 重采样平滑 + 紧凑墨斑补全。"""
         cfg = self.cfg
         region_ink = self.ink_pixels & allowed
         if not region_ink.any():
@@ -1155,17 +1159,25 @@ class RegionStreamRenderer:
         crop = region_ink[min_y:max_y + 1, min_x:max_x + 1]
         skel_crop = sr._zhang_suen_skeleton(crop, max_iterations=160)
         raw = sr.trace_8connected(skel_crop, min_points=cfg.skeleton_min_points)
-        if not raw:
-            return []
         spacing = cfg.skeleton_resample_spacing
         out: list[list[tuple[int, int]]] = []
-        for stroke in raw:
-            pts = [(float(x + min_x), float(y + min_y)) for x, y in stroke]
-            pts = sr._resample_stroke_points(pts, spacing)
-            pts = sr._chaikin_smooth(pts, iterations=1)
-            pts = sr._resample_stroke_points(pts, spacing)
-            if len(pts) >= 2 and sr._stroke_cumulative_length(pts)[-1] > 2.0:
-                out.append([(int(round(x)), int(round(y))) for x, y in pts])
+        if raw:
+            for stroke in raw:
+                pts = [(float(x + min_x), float(y + min_y)) for x, y in stroke]
+                pts = sr._resample_stroke_points(pts, spacing)
+                pts = sr._chaikin_smooth(pts, iterations=1)
+                pts = sr._resample_stroke_points(pts, spacing)
+                if len(pts) >= 2 and sr._stroke_cumulative_length(pts)[-1] > 2.0:
+                    out.append([(int(round(x)), int(round(y))) for x, y in pts])
+        compact_strokes = sr._recover_compact_ink_strokes(
+            crop,
+            out,
+            cfg.ink_reveal_radius,
+            offset_x=min_x,
+            offset_y=min_y,
+        )
+        if compact_strokes:
+            out.extend(compact_strokes)
         return out
 
     def _semantic_plan(self, strokes: list[list[tuple[int, int]]], allowed: np.ndarray) -> list[dict]:
@@ -2221,6 +2233,8 @@ def _parse_args(argv=None):
     p.add_argument("--asset-manifest", default=str(DEFAULT_MANIFEST), help="手部素材与归一化锚点 manifest")
     p.add_argument("--ink-path", default="grid", choices=["grid", "skeleton"],
                    help="笔迹路径: grid 网格(默认); skeleton 骨架追踪")
+    p.add_argument("--ink-color-mode", default="source", choices=["source", "monochrome"],
+                   help="墨线色彩模式：source 采样原画真实色彩（默认，保留线条内部原画 RGB 色彩，边缘仍受二值掩模约束）；monochrome 经典二值化纯黑")
     p.add_argument("--stroke-planner", default="semantic-v2", choices=["semantic-v2", "reading-bands-v1"],
                    help="笔画规划: semantic-v2 主体/组件/轮廓优先(默认); reading-bands-v1 旧水平阅读带")
     p.add_argument("--color-fill", default="local-brush", choices=["local-brush", "contour-wipe", "brush"],
@@ -2256,6 +2270,7 @@ def _build_cfg(args) -> sr.Config:
     if args.cap_long_edge is not None:
         kw["cap_long_edge"] = args.cap_long_edge
     kw["ink_path_mode"] = args.ink_path
+    kw["ink_color_mode"] = args.ink_color_mode
     kw["stroke_planner"] = args.stroke_planner
     kw["color_fill"] = args.color_fill
     kw["pause_mode"] = args.pause
@@ -2380,6 +2395,7 @@ def main(argv=None) -> int:
             "elements": len(annotation["elements"]),
             "stroke_planner": renderer.stroke_planner,
             "stroke_strategy": "fast-semantic-trace-v1" if renderer.stroke_planner == "semantic-v2" else "legacy",
+            "ink_color_mode": renderer.ink_color_mode,
             "color_fill": cfg.color_fill,
             "color_schedule": renderer.color_schedule,
             "pixel_ownership": renderer.pixel_ownership,

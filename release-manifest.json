@@ -26,8 +26,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "1d4d525a5494ca64b3902b857a7ef938fb0b819bbbc64ab52b0f338b3d722d89",
-      "bytes": 4773
+      "sha256": "fe92e05d1d4e784f1042f41e6308f5734c1cdd0531088d9597c71ce6510e29bc",
+      "bytes": 5515
     },
     {
       "path": "CONTRIBUTING.md",
@@ -181,7 +181,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "33cd9fa0c671c1f6073b0d0cd46f899d90bbdce4932a919d614c93fd36b82847",
+      "sha256": "dfea869521d4ce84dd43410f2877bd60e2edaeef57a475c5014d34fc30e34aa9",
       "bytes": 822
     },
     {
@@ -201,8 +201,8 @@
     },
     {
       "path": "references/project-contract.md",
-      "sha256": "db47b39f5dabd2b4ab3d49bc5765b8eb045a0a0749c1e06831cacef90a879609",
-      "bytes": 29352
+      "sha256": "1fe745915a1f2d79547a70b74457b38916c9dc5f4dfcfce7eac592d3dd489eb6",
+      "bytes": 30487
     },
     {
       "path": "references/reuse-decisions.md",
@@ -371,8 +371,8 @@
     },
     {
       "path": "renderer/scripts/render_stream_whiteboard.py",
-      "sha256": "05df800d93a74373eaac79bb942a8c6e3a1f2b8af0d82eff9e01d0773aae23a6",
-      "bytes": 110804
+      "sha256": "7b91005852eebcd60432a4afebfcc9cb078fd5ea7eec4071519e2dec0c3bd8ad",
+      "bytes": 111692
     },
     {
       "path": "renderer/scripts/source_privacy.py",
@@ -381,8 +381,8 @@
     },
     {
       "path": "renderer/scripts/stream_render.py",
-      "sha256": "5421e94edd9ccbada737a579589ad211d3b1899b336ef110ad6d061f9565e69f",
-      "bytes": 93592
+      "sha256": "db876f87c381d050cdac71bdff64d6370a46c5bcf367da01d258bbd5c1f92475",
+      "bytes": 98083
     },
     {
       "path": "renderer/tests/test_explicit_pixel_masks.py",
@@ -431,8 +431,8 @@
     },
     {
       "path": "renderer/tests/test_render_optimizations.py",
-      "sha256": "b406b1f07b7a7ebf0a3af3f87466cc7aafcdff9f099ebc9be46e19a056659a56",
-      "bytes": 8136
+      "sha256": "56f5b3ce2f45704fc56a63fa114441528630e6049f1a5ca2d8208ced7bb86b9d",
+      "bytes": 12813
     },
     {
       "path": "renderer/tests/test_semantic_stroke_v2.py",
@@ -601,8 +601,8 @@
     },
     {
       "path": "scripts/workflow.py",
-      "sha256": "b23a82e4b152389cb74f1336c69a2c9126aff1cedc478a13cd8aded3082033dc",
-      "bytes": 238270
+      "sha256": "768d306413473d727b1d4014d21a3167f21b905daec8dc798291d4ad18386f74",
+      "bytes": 238452
     },
     {
       "path": "tests/fixtures/voice-sample.txt",

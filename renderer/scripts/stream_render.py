@@ -97,6 +97,9 @@ class Config:
     stroke_planner: str = "semantic-v2"  # semantic-v2 主体优先 | reading-bands-v1 旧水平阅读带
     skeleton_min_points: int = 8        # 骨架笔画最少点数（过滤碎片）
     skeleton_resample_spacing: float = 2.5  # 骨架重采样间距（像素）
+    # ── 墨线色彩模式 ──
+    # ink_color_mode: "source" 采样原画真实色彩(默认，保留线条内部原画 RGB 色彩，边缘仍受二值掩模约束) | "monochrome" 经典纯黑二值化
+    ink_color_mode: str = "source"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -898,6 +901,58 @@ def trace_8connected(skel: np.ndarray, min_points: int = 8) -> list[list[tuple[i
     return strokes
 
 
+def _recover_compact_ink_strokes(
+    ink_crop: np.ndarray,
+    existing_strokes: list[list[tuple[int, int]]],
+    reveal_radius: int,
+    offset_x: int = 0,
+    offset_y: int = 0,
+    min_area: int = 3,
+) -> list[list[tuple[int, int]]]:
+    """补全骨架追踪或细化可能遗漏的紧凑独立墨斑（如眼珠瞳孔、鼻尖、逗点等）。
+
+    采用现有笔画的有效揭示区域构建覆盖图，对剩余未覆盖连通块若面积 >= min_area，
+    则生成微笔画（短线段），确保绘制阶段完整揭示。
+    """
+    if not ink_crop.any():
+        return []
+    thick = max(1, reveal_radius * 2 + 1)
+    covered = np.zeros_like(ink_crop, dtype=np.uint8)
+    for stroke in existing_strokes:
+        for idx in range(len(stroke) - 1):
+            p0 = (int(round(stroke[idx][0] - offset_x)), int(round(stroke[idx][1] - offset_y)))
+            p1 = (int(round(stroke[idx + 1][0] - offset_x)), int(round(stroke[idx + 1][1] - offset_y)))
+            cv2.line(covered, p0, p1, 1, thickness=thick)
+    uncovered = ink_crop.astype(bool) & (covered == 0)
+    if not uncovered.any():
+        return []
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+        uncovered.astype(np.uint8), connectivity=8
+    )
+    added: list[list[tuple[int, int]]] = []
+    for l in range(1, num_labels):
+        area = int(stats[l, cv2.CC_STAT_AREA])
+        if area < min_area:
+            continue
+        cx, cy = float(centroids[l][0]), float(centroids[l][1])
+        cw = int(stats[l, cv2.CC_STAT_WIDTH])
+        ch = int(stats[l, cv2.CC_STAT_HEIGHT])
+        comp_ys, comp_xs = np.where(labels == l)
+        min_cx, max_cx = float(comp_xs.min()), float(comp_xs.max())
+        min_cy, max_cy = float(comp_ys.min()), float(comp_ys.max())
+        if cw >= ch:
+            p0 = (int(round(min_cx + offset_x + 0.5)), int(round(cy + offset_y)))
+            p1 = (int(round(max_cx + offset_x - 0.5)), int(round(cy + offset_y)))
+        else:
+            p0 = (int(round(cx + offset_x)), int(round(min_cy + offset_y + 0.5)))
+            p1 = (int(round(cx + offset_x)), int(round(max_cy + offset_y - 0.5)))
+        if p0 == p1:
+            p0 = (int(round(cx + offset_x - 1)), int(round(cy + offset_y)))
+            p1 = (int(round(cx + offset_x + 1)), int(round(cy + offset_y)))
+        added.append([p0, p1])
+    return added
+
+
 # ── 骨架笔画后处理（重采样 + 平滑 + 排序）──
 def _stroke_cumulative_length(points: list[tuple[float, float]]) -> list[float]:
     """每个点的累计弧长 [0, d01, d012, ...]。"""
@@ -1151,8 +1206,6 @@ def _semantic_stroke_plan(
     tail: tuple[float, float] | None = None
     for component_rank, label in enumerate(component_order):
         measured = components[label]["strokes"]
-        texture = [(stroke, length) for stroke, length in measured if length < texture_limit]
-        structural = [(stroke, length) for stroke, length in measured if length >= texture_limit]
         component_center = components[label]["center"]
         component_diagonal = max(
             1.0,
@@ -1161,6 +1214,23 @@ def _semantic_stroke_plan(
                 float(stats[label, cv2.CC_STAT_HEIGHT]),
             ),
         )
+        texture_raw = [(stroke, length) for stroke, length in measured if length < texture_limit]
+        structural = [(stroke, length) for stroke, length in measured if length >= texture_limit]
+
+        short_identity = []
+        regular_texture = []
+        for item in texture_raw:
+            stroke, length = item
+            midpoint = stroke[len(stroke) // 2]
+            centrality = 1.0 - min(
+                1.0,
+                math.hypot(midpoint[0] - component_center[0], midpoint[1] - component_center[1])
+                / (component_diagonal * 0.55),
+            )
+            if centrality >= 0.70:
+                short_identity.append(item)
+            else:
+                regular_texture.append(item)
 
         def semantic_features(item):
             stroke, length = item
@@ -1195,12 +1265,13 @@ def _semantic_stroke_plan(
                 "anchor_score": anchor_score,
             }
 
-        feature_map = {id(item): semantic_features(item) for item in structural}
+        candidates = structural + short_identity
+        feature_map = {id(item): semantic_features(item) for item in candidates}
         role_groups: list[tuple[str, str, list[tuple[list[tuple[float, float]], float]]]] = [
             ("outline", "anchor", []),
             ("detail", "identity", []),
             ("detail", "support", []),
-            ("texture", "texture", texture),
+            ("texture", "texture", regular_texture),
         ]
         if structural:
             anchor = max(structural, key=lambda item: (feature_map[id(item)]["anchor_score"], item[1]))
@@ -1211,12 +1282,23 @@ def _semantic_stroke_plan(
                 features = feature_map[id(item)]
                 is_identity = features["closed"] or features["centrality"] >= 0.58
                 role_groups[1 if is_identity else 2][2].append(item)
+            for item in short_identity:
+                role_groups[1][2].append(item)
             role_groups[1][2].sort(
                 key=lambda item: (-feature_map[id(item)]["identity_score"], -item[1])
             )
             role_groups[2][2].sort(key=lambda item: item[1], reverse=True)
-        if not structural and texture:
-            longest = max(texture, key=lambda item: item[1])
+        elif short_identity:
+            anchor = max(short_identity, key=lambda item: (feature_map[id(item)]["anchor_score"], item[1]))
+            role_groups[0][2].append(anchor)
+            for item in short_identity:
+                if item is not anchor:
+                    role_groups[1][2].append(item)
+            role_groups[1][2].sort(
+                key=lambda item: (-feature_map[id(item)]["identity_score"], -item[1])
+            )
+        elif regular_texture:
+            longest = max(regular_texture, key=lambda item: item[1])
             role_groups[0][2].append(longest)
             role_groups[3][2].remove(longest)
 
@@ -1333,7 +1415,10 @@ class StreamBoardRenderer:
         self.active = _active_mask(self.thresh_map, cfg.grid_edge, cfg.ink_threshold)
         self.grid_blocks = _to_grid_blocks(self.thresh_map, cfg.grid_edge)
         self.ink_pixels = self.thresh_map < cfg.ink_threshold
-        self.ink_paint = np.repeat(self.thresh_map[:, :, None], 3, axis=2).astype(np.float32)
+        if getattr(cfg, "ink_color_mode", "source") == "monochrome":
+            self.ink_paint = np.repeat(self.thresh_map[:, :, None], 3, axis=2).astype(np.float32)
+        else:
+            self.ink_paint = self.color_img.astype(np.float32)
 
         # 把原图背景染成画布底色（仅影响 color_img，不碰 ink_pixels / ink_paint）。
         # 这样上色/凝视阶段的背景与起笔(线稿)阶段一致，避免背景色突兀跳变。
@@ -1411,21 +1496,27 @@ class StreamBoardRenderer:
         cfg = self.cfg
         skel = _zhang_suen_skeleton(self.ink_pixels, max_iterations=160)
         raw_strokes = trace_8connected(skel, min_points=cfg.skeleton_min_points)
-        if not raw_strokes:
+
+        processed: list[list[tuple[int, int]]] = []
+        if raw_strokes:
+            spacing = cfg.skeleton_resample_spacing
+            for stroke in raw_strokes:
+                pts = [(float(x), float(y)) for x, y in stroke]
+                pts = _resample_stroke_points(pts, spacing)
+                pts = _chaikin_smooth(pts, iterations=1)
+                pts = _resample_stroke_points(pts, spacing)
+                if len(pts) >= 2 and _stroke_cumulative_length(pts)[-1] > 2.0:
+                    processed.append([(int(round(x)), int(round(y))) for x, y in pts])
+            processed = _order_skeleton_strokes(processed)
+
+        compact_strokes = _recover_compact_ink_strokes(self.ink_pixels, processed, cfg.ink_reveal_radius)
+        if compact_strokes:
+            processed.extend(compact_strokes)
+
+        if not processed:
             print("  [warn] 骨架追踪无笔画，回退到格中心路径")
             return []
 
-        spacing = cfg.skeleton_resample_spacing
-        processed: list[list[tuple[int, int]]] = []
-        for stroke in raw_strokes:
-            pts = [(float(x), float(y)) for x, y in stroke]
-            pts = _resample_stroke_points(pts, spacing)
-            pts = _chaikin_smooth(pts, iterations=1)
-            pts = _resample_stroke_points(pts, spacing)
-            if len(pts) >= 2 and _stroke_cumulative_length(pts)[-1] > 2.0:
-                processed.append([(int(round(x)), int(round(y))) for x, y in pts])
-
-        processed = _order_skeleton_strokes(processed)
         total_pts = sum(len(s) for s in processed)
         print(f"  骨架追踪: {len(processed)} 条笔画, {total_pts} 个采样点")
         return processed
@@ -2059,6 +2150,10 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--ink-path", default="grid", choices=["grid", "skeleton"],
         help="起笔段笔迹路径: grid 网格格中心插值(默认); skeleton 骨架级像素追踪(更精准贴合线条)",
     )
+    p.add_argument(
+        "--ink-color-mode", default="source", choices=["source", "monochrome"],
+        help="墨线色彩模式: source 采样原画色彩 (默认，保留线条内部原画 RGB 色彩，边缘仍受二值掩模约束); monochrome 纯黑二值化",
+    )
     return p.parse_args(argv)
 
 
@@ -2082,6 +2177,8 @@ def _build_cfg(args: argparse.Namespace) -> Config:
         kw["pause_mode"] = args.pause
     if args.ink_path is not None:
         kw["ink_path_mode"] = args.ink_path
+    if args.ink_color_mode is not None:
+        kw["ink_color_mode"] = args.ink_color_mode
     return Config(**kw)
 
 

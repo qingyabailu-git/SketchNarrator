@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Regression and verification tests for SketchNarrator rendering optimizations."""
 
 from __future__ import annotations
@@ -185,6 +185,95 @@ class TestRenderOptimizations(unittest.TestCase):
 
         fr.clear_runtime_cache()
         self.assertEqual(len(fr._RUNTIME_INFO_CACHE), 0)
+
+    def test_compact_ink_strokes_recovery_preserves_pupils(self):
+        """9: Verify compact ink marks erased by Zhang-Suen are recovered as micro-strokes."""
+        mask = np.zeros((80, 80), dtype=bool)
+        # Long line (structural)
+        cv2.line(mask.view(np.uint8), (10, 40), (70, 40), 1, thickness=3)
+        # Compact solid circle (eye pupil diameter ~6px)
+        cv2.circle(mask.view(np.uint8), (40, 20), 3, 1, thickness=-1)
+
+        skel = sr._zhang_suen_skeleton(mask, max_iterations=160)
+        raw_strokes = sr.trace_8connected(skel, min_points=8)
+        # Long line is detected, but solid circle is eroded by Zhang-Suen
+        self.assertEqual(len(raw_strokes), 1)
+
+        recovered = sr._recover_compact_ink_strokes(mask, raw_strokes, reveal_radius=4)
+        self.assertGreaterEqual(len(recovered), 1)
+        # Recovered stroke is near the pupil (40, 20)
+        pupil_stroke = recovered[0]
+        self.assertTrue(any(abs(x - 40) <= 2 and abs(y - 20) <= 2 for x, y in pupil_stroke))
+
+    def test_prepare_style_ink_maps_source_mode_preserves_color_lines(self):
+        """10: Verify light whiteboard in default source mode preserves colored ink strokes."""
+        # Create light warm paper background
+        img = np.full((120, 120, 3), (215, 235, 245), dtype=np.uint8)
+        # Draw pure black line
+        cv2.line(img, (20, 20), (100, 20), (0, 0, 0), thickness=3)
+        # Draw golden yellow line (BGR: 0, 215, 255)
+        cv2.line(img, (20, 60), (100, 60), (0, 215, 255), thickness=3)
+        # Draw bright red line (BGR: 50, 50, 230)
+        cv2.line(img, (20, 100), (100, 100), (50, 50, 230), thickness=3)
+
+        cfg_source = sr.Config(ink_color_mode="source")
+        thresh, ink_pixels, ink_paint, dark_mode, _ = rsw._prepare_style_ink_maps(img, cfg_source)
+        self.assertFalse(dark_mode)
+
+        # Golden stroke should retain golden color in ink_paint
+        gold_paint = ink_paint[60, 50]
+        self.assertAlmostEqual(gold_paint[0], 0.0, delta=15.0)
+        self.assertAlmostEqual(gold_paint[1], 215.0, delta=15.0)
+        self.assertAlmostEqual(gold_paint[2], 255.0, delta=15.0)
+
+        # Red stroke should retain red color
+        red_paint = ink_paint[100, 50]
+        self.assertAlmostEqual(red_paint[2], 230.0, delta=15.0)
+
+    def test_prepare_style_ink_maps_monochrome_mode_forces_black(self):
+        """11: Verify light whiteboard in monochrome fallback forces all ink lines to black."""
+        img = np.full((120, 120, 3), (215, 235, 245), dtype=np.uint8)
+        # Draw golden yellow line
+        cv2.line(img, (20, 60), (100, 60), (0, 215, 255), thickness=3)
+
+        cfg_mono = sr.Config(ink_color_mode="monochrome")
+        thresh, ink_pixels, ink_paint, dark_mode, _ = rsw._prepare_style_ink_maps(img, cfg_mono)
+        self.assertFalse(dark_mode)
+
+        # In monochrome mode, ink pixels must be pure black [0, 0, 0]
+        mono_paint = ink_paint[60, 50]
+        self.assertEqual(list(mono_paint), [0.0, 0.0, 0.0])
+
+    def test_stream_board_renderer_pure_compact_spots_recovered(self):
+        """12: Verify StreamBoardRenderer recovers compact spots even when raw skeleton strokes are 0."""
+        img = np.full((120, 120, 3), 255, dtype=np.uint8)
+        # Draw only two solid pupils (no long lines at all)
+        cv2.circle(img, (40, 60), 3, (0, 0, 0), -1)
+        cv2.circle(img, (80, 60), 3, (0, 0, 0), -1)
+
+        cfg = sr.Config(ink_path_mode="skeleton", skeleton_min_points=8)
+        renderer = sr.StreamBoardRenderer(img, cfg, None, "no-hand")
+        # Previously raw_strokes == 0 caused early return []; now it recovers compact strokes
+        self.assertGreaterEqual(len(renderer.skeleton_strokes), 2)
+        self.assertGreater(len(renderer.stroke_path), 0)
+
+    def test_stream_board_renderer_color_lines_source_vs_mono(self):
+        """13: Verify StreamBoardRenderer respects ink_color_mode."""
+        img = np.full((120, 120, 3), 255, dtype=np.uint8)
+        # Draw a bright blue line (BGR: 255, 0, 0)
+        cv2.line(img, (20, 60), (100, 60), (255, 0, 0), thickness=3)
+
+        cfg_source = sr.Config(cap_long_edge=120, ink_color_mode="source")
+        r_source = sr.StreamBoardRenderer(img, cfg_source, None, "no-hand")
+        # Source mode retains blue line in ink_paint
+        blue_val = r_source.ink_paint[60, 50]
+        self.assertAlmostEqual(blue_val[0], 255.0, delta=15.0)
+
+        cfg_mono = sr.Config(cap_long_edge=120, ink_color_mode="monochrome")
+        r_mono = sr.StreamBoardRenderer(img, cfg_mono, None, "no-hand")
+        # Monochrome mode forces black line
+        mono_val = r_mono.ink_paint[60, 50]
+        self.assertEqual(list(mono_val), [0.0, 0.0, 0.0])
 
 
 if __name__ == "__main__":
