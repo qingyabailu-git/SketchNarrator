@@ -29,6 +29,36 @@ TTS_SPEC.loader.exec_module(tts_elevenlabs)
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_title_card_invalid_character_limit_is_actionable(self) -> None:
+        scenes = [{"id": "scene-01", "title_card": {"text": "本幕重点"}}]
+        for limit in ("十八", [], {}, True, 18.5, 0, -1):
+            with self.subTest(limit=limit):
+                project = {"title_card_profile": {"enabled": True, "max_text_chars": limit}}
+                with self.assertRaisesRegex(workflow.WorkflowError, "max_text_chars.*正整数"):
+                    workflow.compile_scene_title_cards(project, scenes)
+        result = workflow.compile_scene_title_cards(
+            {"title_card_profile": {"enabled": True, "max_text_chars": "18"}}, scenes
+        )
+        self.assertEqual(result[0]["title_card"]["text"], "本幕重点")
+        self.assertNotIn("position", scenes[0]["title_card"])
+
+    def test_public_defaults_do_not_invent_title_cards(self) -> None:
+        scenes = [{"id": "scene-01", "title": "不是卡片文案"}]
+        for profile in ({}, {"title_card_profile": {"enabled": False}}):
+            with self.subTest(profile=profile):
+                result = workflow.compile_scene_title_cards(profile, scenes)
+                self.assertEqual(result, scenes)
+                self.assertIsNot(result, scenes)
+                self.assertNotIn("title_card", result[0])
+
+    def test_title_card_reports_text_style_and_position_errors_together(self) -> None:
+        project = {"title_card_profile": {"enabled": True, "max_text_chars": 2}}
+        scenes = [{"id": "scene-01", "title_card": {"text": "超过字数", "position": "bottom", "style": "unknown"}}]
+        with self.assertRaises(workflow.WorkflowError) as caught:
+            workflow.compile_scene_title_cards(project, scenes)
+        for message in ("位置不受支持", "样式不受支持", "超过 2 个字符"):
+            self.assertIn(message, str(caught.exception))
+
     def test_required_title_cards_are_planned_before_gate_two(self) -> None:
         project = {
             "title_card_profile": {

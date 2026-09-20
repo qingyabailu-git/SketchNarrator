@@ -26,8 +26,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "fe92e05d1d4e784f1042f41e6308f5734c1cdd0531088d9597c71ce6510e29bc",
-      "bytes": 5515
+      "sha256": "71d917fcb2fcda94bd25164bc4ed8f575f7d6ba3fb52ac4796a93e416277fb6d",
+      "bytes": 6381
     },
     {
       "path": "CONTRIBUTING.md",
@@ -51,8 +51,8 @@
     },
     {
       "path": "SKILL.md",
-      "sha256": "74402a21c45a7a67434180eeaa7a32271115783ff3d12f57d20e7aab487bc7e4",
-      "bytes": 45441
+      "sha256": "b48dbdace7ecfaeb75c48d69620059931eb9e6d76981284675cb7687cf4248be",
+      "bytes": 45825
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -181,7 +181,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "dfea869521d4ce84dd43410f2877bd60e2edaeef57a475c5014d34fc30e34aa9",
+      "sha256": "584466c71a2ffa0b98451b7ce7b751e5ae374d579ad17c1ba3fe3bbf5e8956a3",
       "bytes": 822
     },
     {
@@ -201,8 +201,8 @@
     },
     {
       "path": "references/project-contract.md",
-      "sha256": "1fe745915a1f2d79547a70b74457b38916c9dc5f4dfcfce7eac592d3dd489eb6",
-      "bytes": 30487
+      "sha256": "b859c2e5859c39a6895da1cf6dd73591216695186077ba7d55ad6bec11a55092",
+      "bytes": 31210
     },
     {
       "path": "references/reuse-decisions.md",
@@ -371,8 +371,8 @@
     },
     {
       "path": "renderer/scripts/render_stream_whiteboard.py",
-      "sha256": "7b91005852eebcd60432a4afebfcc9cb078fd5ea7eec4071519e2dec0c3bd8ad",
-      "bytes": 111692
+      "sha256": "b81e6641017347b175e2807a77578cc6424e38b79ee4df25d8af31d6aa4927dc",
+      "bytes": 112099
     },
     {
       "path": "renderer/scripts/source_privacy.py",
@@ -406,8 +406,8 @@
     },
     {
       "path": "renderer/tests/test_frame_writer.py",
-      "sha256": "9aba9c7b2a596923026821d7a0a5f2614b37c636bcd16ae69825efac145d2d7f",
-      "bytes": 2126
+      "sha256": "b2776fcad4a5795c8f37c7baa0e5cca051a28cd250a49c83ae4a9887c21e041f",
+      "bytes": 3581
     },
     {
       "path": "renderer/tests/test_pixel_ownership.py",
@@ -561,8 +561,8 @@
     },
     {
       "path": "scripts/title_card.py",
-      "sha256": "d00bfe881efb47d5c6ae7d7da229ddc529469366a47790ded609f6787d143f3b",
-      "bytes": 5253
+      "sha256": "c644be7294372177d9379982f264a1359b7ab4f612a28c08c551d975fecfa86c",
+      "bytes": 5332
     },
     {
       "path": "scripts/tts_azure.py",
@@ -596,13 +596,13 @@
     },
     {
       "path": "scripts/visual_director.py",
-      "sha256": "1d8bffe747f73b252688db53d8f3529e2f58e69a71d0c9055255a2303b4f8359",
-      "bytes": 47544
+      "sha256": "47c67ab9647f140c013b69d73d871c7d8badd88eda60971aa13c9ab46579bbff",
+      "bytes": 49075
     },
     {
       "path": "scripts/workflow.py",
-      "sha256": "768d306413473d727b1d4014d21a3167f21b905daec8dc798291d4ad18386f74",
-      "bytes": 238452
+      "sha256": "13583ab3189180f1c471fa8a7f6634cabe4c04757b17e4c6eeb8dc8c06afbd02",
+      "bytes": 238908
     },
     {
       "path": "tests/fixtures/voice-sample.txt",
@@ -751,13 +751,13 @@
     },
     {
       "path": "tests/test_visual_director.py",
-      "sha256": "8dbc20f3a24f3ca6685720a144b0b7420607bbc82cfbf538cad086728e08a4ba",
-      "bytes": 15539
+      "sha256": "f41507336c067d9b12858060fc2eb8ac8dd6758c8bb731c5b04d2b34809b15de",
+      "bytes": 17611
     },
     {
       "path": "tests/test_workflow.py",
-      "sha256": "98bd003aea8de9e70be623ce7f5f7126c25db08c7034134a63199bd9ad524f50",
-      "bytes": 58421
+      "sha256": "8049bbcac5241510e6025c1750c834bfe00cd780506eba67eede5a0b27b80b9c",
+      "bytes": 60291
     },
     {
       "path": "tests/test_workflow_optimizations.py",

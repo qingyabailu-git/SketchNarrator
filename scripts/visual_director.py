@@ -11,8 +11,14 @@ import copy
 import json
 import math
 import re
+import sys
 from pathlib import Path
 from typing import Any, Iterable
+
+SCRIPTS = Path(__file__).resolve().parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+from title_card import TITLE_CARD_CONTENT_TOP, TITLE_CARD_REGION
 
 
 class VisualPlanError(RuntimeError):
@@ -549,6 +555,21 @@ def _validate_spatial_allocation(regions: list[dict[str, Any]], element_ids: lis
                 raise VisualPlanError(f"{shot_id} 生图区域相互重叠；请在生图前调整空间，工作台编辑保存不受此限制")
 
 
+def _validate_title_card_space(
+    regions: list[dict[str, Any]], reservation: Any, shot_id: str
+) -> None:
+    card_box = _normalized_box(reservation, f"{shot_id} 卡片预留区")
+    if card_box != list(TITLE_CARD_REGION):
+        raise VisualPlanError(f"{shot_id} 卡片预留区与渲染契约不一致；请重新登记并确认视觉计划")
+    cx, cy, cw, ch = card_box
+    for region in regions:
+        x, y, width, height = region["box"]
+        if min(x + width, cx + cw) - max(x, cx) > 0.00001 and min(y + height, cy + ch) - max(y, cy) > 0.00001:
+            raise VisualPlanError(
+                f"{shot_id} 生图区域 {region.get('region_id')} 侵入卡片预留区；请在第二次确认前调整布局"
+            )
+
+
 def _native_layout_plan(
     shot: dict[str, Any],
     scene: dict[str, Any],
@@ -559,6 +580,8 @@ def _native_layout_plan(
     element_ids = [_text(item.get("id")) for item in elements]
     if not 1 <= len(elements) <= 6:
         raise VisualPlanError(f"{shot['shot_id']} 生图前请将本幕整理为 1–6 个完整绘制单元，不能为填满布局硬拆对象")
+    card = scene.get("title_card")
+    card_region = list(TITLE_CARD_REGION) if isinstance(card, dict) and _text(card.get("text")) else None
     source = visual.get("layout") if isinstance(visual.get("layout"), dict) else {}
     explicit = source.get("native_regions")
     template = _text(source.get("template"))
@@ -589,12 +612,20 @@ def _native_layout_plan(
             "purpose": _text(item.get("label")),
             "box": list(slots[index]),
         } for index, item in enumerate(elements)]
+        if card_region:
+            scale = (0.79 - TITLE_CARD_CONTENT_TOP) / 0.72
+            for region in regions:
+                x, y, width, height = region["box"]
+                region["box"] = [x, round(TITLE_CARD_CONTENT_TOP + (y - 0.07) * scale, 4), width, round(height * scale, 4)]
     _validate_spatial_allocation(regions, element_ids, shot["shot_id"])
+    if card_region:
+        _validate_title_card_space(regions, card_region, shot["shot_id"])
     return {
         "planned_before_board": True,
         "coordinate_space": "normalized-0-1",
         "template": template,
         "caption_region": [0.05, 0.86, 0.90, 0.12],
+        **({"title_card_region": card_region} if card_region else {}),
         "native_regions": regions,
         "semantic_ownership": {"native": [{
             "semantic_id": element_ids[index],

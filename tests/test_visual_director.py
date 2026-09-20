@@ -32,6 +32,38 @@ def words_for_scene(start: int, text: list[str], duration: int = 800) -> list[di
 
 
 class VisualDirectorTests(unittest.TestCase):
+    def test_title_card_reserves_space_before_board_generation(self):
+        for count in range(1, 7):
+            with self.subTest(count=count):
+                elements = [{"id": f"item-{i}", "label": f"对象{i}"} for i in range(count)]
+                scene = {"elements": elements, "title_card": {"text": "本幕重点"}}
+                original = copy.deepcopy(scene)
+                layout = visual_director._native_layout_plan({"shot_id": "s"}, scene, {})
+                self.assertEqual(layout["title_card_region"], [0.025, 0.028, 0.95, 0.112])
+                self.assertEqual(scene, original)
+                self.assertEqual([r["element_ids"] for r in layout["native_regions"]], [[e["id"]] for e in elements])
+                for region in layout["native_regions"]:
+                    _, y, _, height = region["box"]
+                    self.assertGreaterEqual(y, 0.16)
+                    self.assertLessEqual(y + height, 0.7901)
+
+    def test_title_card_custom_space_is_validated_not_silently_moved(self):
+        scene = {"elements": [{"id": "a"}], "title_card": {"text": "本幕重点"}}
+        source = {"layout": {"native_regions": [{"element_ids": ["a"], "box": [0.05, 0.07, 0.9, 0.72]}]}}
+        original = copy.deepcopy(source)
+        with self.assertRaisesRegex(visual_director.VisualPlanError, "卡片预留区"):
+            visual_director._native_layout_plan({"shot_id": "s"}, scene, source)
+        self.assertEqual(source, original)
+        source["layout"]["native_regions"][0]["box"] = [0.05, 0.16, 0.9, 0.63]
+        result = visual_director._native_layout_plan({"shot_id": "s"}, scene, source)
+        self.assertEqual(result["native_regions"][0]["box"], [0.05, 0.16, 0.9, 0.63])
+
+    def test_no_title_card_keeps_existing_public_layout(self):
+        scene = {"elements": [{"id": "a"}]}
+        result = visual_director._native_layout_plan({"shot_id": "s"}, scene, {})
+        self.assertNotIn("title_card_region", result)
+        self.assertEqual(result["native_regions"][0]["box"], [0.05, 0.07, 0.9, 0.72])
+
     def test_layout_allocates_independent_objects_without_changing_ids(self):
         for count in range(1, 7):
             elements = [{"id": f"id-{i}", "label": f"单元{i}"} for i in range(count)]
@@ -144,7 +176,7 @@ class VisualDirectorTests(unittest.TestCase):
             {
                 "planned_before_board", "coordinate_space", "caption_region",
                 "native_regions", "semantic_ownership", "planning_sequence",
-                "board_generation_contract", "template",
+                "board_generation_contract", "template", "title_card_region",
             },
         )
         markdown = visual_director.render_visual_plan_markdown(plan)

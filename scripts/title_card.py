@@ -22,6 +22,9 @@ except ImportError:
     font_runtime = None  # type: ignore
 
 
+TITLE_CARD_REGION = (0.025, 0.028, 0.95, 0.112)
+TITLE_CARD_CONTENT_TOP = 0.16
+
 DEFAULT_PALETTES = {
     "coral": (242, 95, 92, 255),
     "purple": (142, 68, 173, 255),

@@ -212,7 +212,7 @@ python scripts/workflow.py approve --project <项目目录> script-voice
 
 读取已经确认的 `visual-plan.json`。它是整板图生成的上游约束：逐幕按 `layout_plan.native_regions` 放置手绘对象，并始终避开底部 `caption_region`。现有 `b_whiteboard` 继续进入整板图、annotation 和 `animation-plan.json`；visual beat 的真实触发边界映射到动画计划。A-roll 逻辑槽位在 presenter 素材最终确定前只作为编排信息保留，不生成新的 IP 图片，不修改现有抱笔/板擦素材。
 
-读取 [视觉制作规范](references/visual-production.md) 和 [风格注册表](references/style-registry.json)。每幕生成一张完整 16:9 整板图。生图输入必须按“本幕语义与元素 → 本幕构图与角色参考 → 风格参考图与风格契约 → 安全框及禁用项”拼接；风格注册表中的同一张 `reference_image` 同时供生图、工作台和验收使用。不要让每幕都成为相同的横向图标队列。已经批准的文字卡片由渲染器放在左上安全区，板图继续禁止生成任何文字或卡片底框。
+读取 [视觉制作规范](references/visual-production.md) 和 [风格注册表](references/style-registry.json)。每幕生成一张完整 16:9 整板图。生图输入必须按“本幕语义与元素 → 本幕构图与角色参考 → 风格参考图与风格契约 → 安全框及禁用项”拼接；风格注册表中的同一张 `reference_image` 同时供生图、工作台和验收使用。不要让每幕都成为相同的横向图标队列。已经批准的文字卡片由渲染器放在左上安全区，板图继续禁止生成任何文字或卡片底框。启用卡片的新分镜在 `layout_plan.title_card_region` 中预留卡片空间，并在第二次确认展示；生图必须避开该区域。预设布局在规划时留出空间，自定义布局冲突在确认前明确指出，不偷偷挪动已批准对象。渲染器将卡片完整等比适配到同一预留区，不裁字；旧项目不自动改图、迁移或追认批准。
 
 若人物跨幕出现，先生成或选定角色参考图，之后每次生图都传入该参考。Codex 必须实际查看原图，再按口播语义和真实像素创建 `annotation.json`：
 

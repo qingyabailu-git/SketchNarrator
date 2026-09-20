@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5 - 2026-09-20
+
+- Reserve the shared title card area in the visual layout plan: scenes with a card record `layout_plan.title_card_region`, preset native layouts start at y=0.16, and board generation stays out of that area. Custom regions that intrude into the reservation fail Gate 2 with an explicit conflict instead of silently moving approved objects.
+- Fit the approved card into the same reserved area when rendering: the overlay is scaled proportionally, never cropped and never upscaled, so the card text stays inside its reserved space at every output size.
+- Reject an empty, non-numeric, or non-positive `title_card_profile.max_text_chars` with an actionable message instead of an unhandled exception, and report card text, style, and position problems together.
+- Pin the final AAC track to 48 kHz so the delivered mix keeps a single sample rate.
+
 ## 0.1.4 - 2026-09-18
 
 - Fix compact ink stroke erosion during Zhang-Suen skeletonization: recover isolated compact ink components (such as eye pupils, dots, and small facial features) via `_recover_compact_ink_strokes` and promote core short strokes to `short_identity` in semantic stroke planning.

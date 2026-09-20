@@ -4,8 +4,10 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
+from PIL import Image
 
 
 ROOT = Path(__file__).parents[1]
@@ -34,6 +36,26 @@ class FakeWriter:
 
 
 class FrameCountWriterTests(unittest.TestCase):
+    def test_title_card_fits_reserved_region_without_cropping(self) -> None:
+        card = Image.new("RGBA", (1400, 120), (255, 255, 255, 255))
+        for width, height in ((320, 180), (960, 540), (1920, 1080)):
+            with self.subTest(size=(width, height)), patch.object(module, "render_concept_card", return_value=card):
+                rgba, x, y = module._build_title_card_overlay("本幕重点", "#356AE6", None, width, height)
+                self.assertEqual((x, y), (round(width * 0.025), round(height * 0.028)))
+                self.assertLessEqual(rgba.shape[1], int(width * 0.95))
+                self.assertLessEqual(rgba.shape[0], int(height * 0.112))
+                self.assertLessEqual(x + rgba.shape[1], width)
+                self.assertLessEqual(y + rgba.shape[0], round(height * 0.14))
+                scale = min(1.0, int(width * 0.95) / card.width, int(height * 0.112) / card.height)
+                self.assertLessEqual(abs(rgba.shape[1] - card.width * scale), 1)
+                self.assertLessEqual(abs(rgba.shape[0] - card.height * scale), 1)
+
+    def test_disabled_title_card_does_not_build_overlay(self) -> None:
+        with patch.object(module, "render_concept_card") as render:
+            for text in (None, "", "   "):
+                self.assertIsNone(module._build_title_card_overlay(text, "#356AE6", None, 960, 540))
+            render.assert_not_called()
+
     def test_static_title_card_overlay_is_present_on_written_and_padded_frames(self) -> None:
         delegate = FakeWriter()
         rgba = np.zeros((1, 1, 4), dtype=np.uint8)

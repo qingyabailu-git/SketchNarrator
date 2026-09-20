@@ -487,7 +487,17 @@ def compile_scene_title_cards(
 
     position = str(profile.get("position") or "top-left").strip()
     style = str(profile.get("style") or "outlined-label-v1").strip()
-    max_chars = int(profile.get("max_text_chars") or 18)
+    raw_max_chars = profile.get("max_text_chars", 18)
+    if raw_max_chars is None:
+        raw_max_chars = 18
+    try:
+        if isinstance(raw_max_chars, bool) or not isinstance(raw_max_chars, (int, str)):
+            raise ValueError
+        max_chars = int(raw_max_chars)
+        if max_chars <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise WorkflowError("title_card_profile.max_text_chars 必须是正整数，默认值为 18") from None
     palette = profile.get("accent_palette")
     if not isinstance(palette, list) or not palette:
         palette = list(DEFAULT_TITLE_CARD_ACCENTS)
@@ -3728,7 +3738,7 @@ def render(
                 "-filter_complex", audio_filter,
                 "-map", "0:v:0", "-map", "[mixed]", "-vf", subtitle_filter,
                 "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
-                "-c:a", "aac", "-b:a", "160k",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
                 "-frames:v", str(target_frames), "-t", f"{duration_sec:.6f}", "-movflags", "+faststart",
                 str(temporary_final.relative_to(root)).replace("\\", "/"),
             ], cwd=root, env=runtime_env)
@@ -3738,7 +3748,7 @@ def render(
                 "-i", "renders/silent.mp4", "-i", audio_record,
                 "-map", "0:v:0", "-map", "1:a:0", "-vf", subtitle_filter,
                 "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
-                "-c:a", "aac", "-b:a", "160k", "-af", "apad",
+                "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-af", "apad",
                 "-frames:v", str(target_frames), "-t", f"{duration_sec:.6f}", "-movflags", "+faststart",
                 str(temporary_final.relative_to(root)).replace("\\", "/"),
             ], cwd=root, env=runtime_env)

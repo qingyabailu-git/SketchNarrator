@@ -32,7 +32,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import ImageFont
+from PIL import Image, ImageFont
 
 # 复用 stream 渲染器的全部构件（同目录）
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -46,7 +46,7 @@ from phase_budget import MIN_COLOR_FRAMES, MIN_COLOR_SWEEPS, HAND_RELEASE_MS, ph
 _PUBLIC_SCRIPTS_DIR = _SCRIPT_DIR.parents[1] / "scripts"
 if str(_PUBLIC_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_PUBLIC_SCRIPTS_DIR))
-from title_card import render_concept_card  # noqa: E402
+from title_card import TITLE_CARD_REGION, render_concept_card  # noqa: E402
 
 DEFAULT_HAND = _SCRIPT_DIR.parent / "assets" / "drawing-hand.png"
 DEFAULT_ERASER = _SCRIPT_DIR.parent / "assets" / "eraser-hand.png"
@@ -319,7 +319,16 @@ def _build_title_card_overlay(
         padding_y=max(8, round(short_edge * 0.008)),
         accent_bar_color=accent,
     )
-    return np.asarray(card, dtype=np.uint8), round(out_w * 0.025), round(out_h * 0.028)
+    region_x, region_y, region_w, region_h = TITLE_CARD_REGION
+    box_w = int(out_w * region_w)
+    box_h = int(out_h * region_h)
+    scale = min(1.0, box_w / max(1, card.width), box_h / max(1, card.height))
+    if scale < 1.0:
+        card = card.resize(
+            (max(1, int(card.width * scale)), max(1, int(card.height * scale))),
+            Image.LANCZOS,
+        )
+    return np.asarray(card, dtype=np.uint8), round(out_w * region_x), round(out_h * region_y)
 
 
 def _read_asset_manifest(path: Path) -> dict:
