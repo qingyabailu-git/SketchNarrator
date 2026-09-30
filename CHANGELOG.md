@@ -8,6 +8,7 @@
 - Assign `canvas.width` / `canvas.height` only when the scene canvas size actually changed, instead of reallocating the multi-megapixel backing store and resetting the 2D context on every repaint.
 - Throttle canvas drags to at most one repaint per animation frame and defer change diffing, draft persistence, and timeline rebuilding to pointer release. A click that only selects a region without moving it now performs no bookkeeping at all.
 - Treat a filesystem that accepts `os.symlink()` without reporting the result as a link as unsupported in the release-manifest test, so the suite passes on Windows drives without reparse-point support.
+- Publish GitHub releases automatically: pushing a `v*` tag now verifies the release manifest, builds the deterministic public ZIP, and attaches it to a release named after the tag, using the matching `CHANGELOG.md` section as the release notes.
 
 ## 0.1.5 - 2026-09-20
 

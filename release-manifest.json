@@ -15,6 +15,11 @@
       "bytes": 1532
     },
     {
+      "path": ".github/workflows/release.yml",
+      "sha256": "fcb31790ea2b47218446fc03611c46dc40b4642a366bdae27b7ffeb35f325974",
+      "bytes": 2311
+    },
+    {
       "path": ".gitignore",
       "sha256": "fa12c0eb137b93c9e671f7935fa10f541a964131892c9dc320280713b2171caf",
       "bytes": 493
@@ -26,8 +31,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "03be9303fcc4e0e56a204a5ffb04b5d39f8a5c5c4409e0bcc96b720fde16e791",
-      "bytes": 7734
+      "sha256": "e2bfbd0c577b61c3a0f3c6116061630283a149035c1d1b47ed81c3b6c9fca617",
+      "bytes": 7980
     },
     {
       "path": "CONTRIBUTING.md",

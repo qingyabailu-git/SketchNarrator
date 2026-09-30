@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish (for example v0.1.6)'
+        required: true
+        type: string
+
+# Least privilege: publishing a release only needs to write repository contents.
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Skip when the release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "found=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify the release manifest matches the tagged tree
+        if: steps.existing.outputs.found == 'no'
+        run: python scripts/update_release_manifest.py --check
+
+      - name: Build the deterministic public ZIP
+        if: steps.existing.outputs.found == 'no'
+        run: python scripts/package_release.py
+
+      - name: Turn the matching CHANGELOG section into release notes
+        if: steps.existing.outputs.found == 'no'
+        run: |
+          python - <<'PY'
+          import os
+          import re
+
+          tag = os.environ["TAG"]
+          version = tag[1:] if tag.startswith("v") else tag
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          section = re.search(
+              r"^##\s+%s\b.*?(?=^##\s|\Z)" % re.escape(version), text, re.M | re.S
+          )
+          if not section:
+              raise SystemExit("CHANGELOG.md has no section for %s" % version)
+          body = "\n".join(section.group(0).strip().splitlines()[1:]).strip()
+          with open("release-notes.md", "w", encoding="utf-8") as handle:
+              handle.write("## Changes\n\n%s\n" % body)
+          PY
+
+      - name: Publish the release with the ZIP attached
+        if: steps.existing.outputs.found == 'no'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" dist/*.zip \
+            --title "SketchNarrator $TAG" \
+            --notes-file release-notes.md
