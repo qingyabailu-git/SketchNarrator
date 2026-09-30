@@ -1323,16 +1323,23 @@ function loadScene(idx) {
 
 function samplePaperColor(img) {
   try {
+    // Copy the four corner pixels straight into a 4x1 scratch canvas and read them back in one
+    // getImageData call. The previous version materialised a scratch canvas the size of the whole
+    // board and drew the full image into it, then issued four separate 1x1 readbacks, each of
+    // which forces a GPU->CPU sync. Source and destination rects are both 1x1, so the copied
+    // pixels are identical and the sampled colour is unchanged.
     const t = document.createElement('canvas');
-    t.width = img.naturalWidth; t.height = img.naturalHeight;
-    const tc = t.getContext('2d');
-    tc.drawImage(img, 0, 0);
-    const pts = [[2,2], [t.width-3, 2], [2, t.height-3], [t.width-3, t.height-3]];
-    let r=0, g=0, b=0;
-    pts.forEach(([x, y]) => {
-      const d = tc.getImageData(x, y, 1, 1).data;
-      r += d[0]; g += d[1]; b += d[2];
-    });
+    t.width = 4; t.height = 1;
+    const tc = t.getContext('2d', { willReadFrequently: true });
+    const W = img.naturalWidth, H = img.naturalHeight;
+    tc.drawImage(img, 2, 2, 1, 1, 0, 0, 1, 1);
+    tc.drawImage(img, W - 3, 2, 1, 1, 1, 0, 1, 1);
+    tc.drawImage(img, 2, H - 3, 1, 1, 2, 0, 1, 1);
+    tc.drawImage(img, W - 3, H - 3, 1, 1, 3, 0, 1, 1);
+    const d = tc.getImageData(0, 0, 4, 1).data;
+    const r = d[0] + d[4] + d[8] + d[12];
+    const g = d[1] + d[5] + d[9] + d[13];
+    const b = d[2] + d[6] + d[10] + d[14];
     App.paperColor = `rgb(${Math.round(r/4)},${Math.round(g/4)},${Math.round(b/4)})`;
     $('canvas').style.background = App.paperColor;
   } catch (e) {
@@ -1438,11 +1445,29 @@ function syncElementEditor() {
   $('f_end').value = timing.startMs + timing.durationMs;
   $('f_dur').value = timing.durationMs;
 
-  // Subtitle options from captions
-  const subs = App.captionsList.length ? App.captionsList : [{ text: el.subtitle || '默认字幕' }];
-  $('f_sub_select').innerHTML = `<option value="">（不指定或留空）</option>` + subs.map(s => `
-    <option value="${escapeHtml(s.text)}" ${s.text === el.subtitle ? 'selected' : ''}>${escapeHtml(s.text)}</option>
-  `).join('');
+  // Subtitle options come from the caption list of the whole project, which can hold hundreds of
+  // entries. Rebuilding them on every element selection parses and lays out that many <option>
+  // nodes, which makes clicking a region feel sluggish. The option set only depends on the
+  // caption list, so build it once per caption list and afterwards just move the selection.
+  {
+    const sel = $('f_sub_select');
+    const fallback = el.subtitle || '默认字幕';
+    if (App.captionsList.length) {
+      if (App.subtitleOptionsSource !== App.captionsList) {
+        App.subtitleOptionsSource = App.captionsList;
+        sel.innerHTML = `<option value="">（不指定或留空）</option>` + App.captionsList.map(s => `
+          <option value="${escapeHtml(s.text)}">${escapeHtml(s.text)}</option>
+        `).join('');
+      }
+      sel.value = el.subtitle || '';
+      if (sel.selectedIndex < 0) sel.value = '';
+    } else {
+      App.subtitleOptionsSource = null;
+      sel.innerHTML = `<option value="">（不指定或留空）</option>`
+        + `<option value="${escapeHtml(fallback)}">${escapeHtml(fallback)}</option>`;
+      sel.value = fallback;
+    }
+  }
 }
 
 $('f_sub_select').addEventListener('change', e => {
@@ -1785,7 +1810,12 @@ function renderCanvas() {
   const sc = App.scenes[App.activeSceneIdx];
   if (!sc) return;
   const W = sc.annData.canvas.width || 1920, H = sc.annData.canvas.height || 1080;
-  canvas.width = W; canvas.height = H;
+  // Assigning canvas.width also resets the whole 2D context state and reallocates the backing
+  // store. Every state mutation in this renderer is wrapped in save()/restore(), so the context
+  // is already at its defaults here; resizing only when the size actually changed avoids
+  // reallocating a multi-megapixel buffer (and the GPU->CPU churn that comes with it) on every
+  // single repaint.
+  if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
 
   ctx.fillStyle = App.paperColor;
   ctx.fillRect(0, 0, W, H);
@@ -1922,6 +1952,7 @@ canvas.addEventListener('pointerdown', evt => {
       App.selectedElemIdx = i;
       const h = findHandleAt(pt, r) || 'move';
       App.drag = { handle: h, startPt: pt, rect: { ...r } };
+      App.dragMoved = false;
       canvas.setPointerCapture(evt.pointerId);
       syncElementEditor();
       renderElementList();
@@ -1956,16 +1987,46 @@ canvas.addEventListener('pointermove', evt => {
     el.region.width = Math.round(right - left);
     el.region.height = Math.round(bottom - top);
   }
+  // A plain click selects a region without changing its geometry. Remember whether this gesture
+  // actually edited anything so the release handler can skip the expensive bookkeeping when the
+  // user only picked a box to look at it.
+  if (el.region.x !== App.drag.rect.x || el.region.y !== App.drag.rect.y
+      || el.region.width !== App.drag.rect.width || el.region.height !== App.drag.rect.height) {
+    App.dragMoved = true;
+  }
   syncHandPath(el);
 
   syncElementEditor();
-  checkDirtyAndDiff();
-  renderCanvas();
-  renderTimelineTab();
+  // A drag emits tens to hundreds of pointermove events per second. Running the full bookkeeping
+  // pipeline (change diffing, draft persistence, save-gate validation, diff panel, timeline DOM)
+  // for every one of them makes dragging unusable on large projects. Paint at most once per frame
+  // while dragging, keep the dirty indicator responsive, and flush the expensive work on release.
+  if (!App.dirty) {
+    App.dirty = true;
+    $('dirtyFlag').classList.add('show');
+  }
+  if (App.dragRaf) cancelAnimationFrame(App.dragRaf);
+  App.dragRaf = requestAnimationFrame(() => { App.dragRaf = 0; renderCanvas(); });
 });
 
-canvas.addEventListener('pointerup', () => { App.drag = null; checkDirtyAndDiff(); });
-canvas.addEventListener('pointercancel', () => { App.drag = null; checkDirtyAndDiff(); });
+function finishCanvasDrag() {
+  if (!App.drag && !App.dragRaf) return;
+  const moved = App.dragMoved === true;
+  App.drag = null;
+  App.dragMoved = false;
+  if (App.dragRaf) { cancelAnimationFrame(App.dragRaf); App.dragRaf = 0; }
+  // Selecting a region repaints the highlight on pointerdown, so a click that never moved
+  // anything needs no further work here: no diffing, no draft write, no timeline rebuild.
+  // The full bookkeeping changes something real, and only then does it run.
+  if (!moved) return;
+  renderCanvas();
+  checkDirtyAndDiff();
+  renderTimelineTab();
+}
+
+canvas.addEventListener('pointerup', finishCanvasDrag);
+canvas.addEventListener('pointercancel', finishCanvasDrag);
+canvas.addEventListener('lostpointercapture', finishCanvasDrag);
 
 // Style Switch Card Handler
 let targetStyleIdToConfirm = null;

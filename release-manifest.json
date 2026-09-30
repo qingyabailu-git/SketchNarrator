@@ -26,8 +26,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "71d917fcb2fcda94bd25164bc4ed8f575f7d6ba3fb52ac4796a93e416277fb6d",
-      "bytes": 6381
+      "sha256": "03be9303fcc4e0e56a204a5ffb04b5d39f8a5c5c4409e0bcc96b720fde16e791",
+      "bytes": 7734
     },
     {
       "path": "CONTRIBUTING.md",
@@ -181,7 +181,7 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "584466c71a2ffa0b98451b7ce7b751e5ae374d579ad17c1ba3fe3bbf5e8956a3",
+      "sha256": "52a2dc071a541e50a36b59e027bd7bd010ce78faba27033ae375066198ca9886",
       "bytes": 822
     },
     {
@@ -276,8 +276,8 @@
     },
     {
       "path": "renderer/assets/panel.html",
-      "sha256": "eb9398dc1d4a604cd4b23021c9b7513df20a50f61e8c1a27c7e5bda24f80cab8",
-      "bytes": 157287
+      "sha256": "21fef3476379976f9b2d4671290ed25d0585bbc7f857f4b3033d3f00629d65a6",
+      "bytes": 160757
     },
     {
       "path": "renderer/assets/style-registry-data.js",
@@ -691,8 +691,8 @@
     },
     {
       "path": "tests/test_release_manifest.py",
-      "sha256": "90cd5f57acc395cf3195d21d7787dffcc29bb79d16cdd43d3220f39c5a5ec3bc",
-      "bytes": 11520
+      "sha256": "d04b5a8f5543bb19b447af43cfbcf04e6a2b627bc56aa833902c24c0f154a649",
+      "bytes": 12020
     },
     {
       "path": "tests/test_render_annotation_preview.py",

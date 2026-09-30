@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.6 - 2026-09-30
+
+- Keep the annotation panel usable on large projects. Four hot paths that scaled with project size were reworked after measuring the panel on real multi-hundred-caption projects:
+- Sample the board paper colour by copying the four corner pixels into a single 4x1 scratch canvas and reading them back once, instead of drawing the whole board into an image-sized canvas and issuing four separate 1x1 readbacks that each force a GPU-to-CPU sync. The sampled colour is unchanged.
+- Build the element editor's subtitle option list once per caption list and afterwards only move the selection, instead of re-parsing and re-laying out hundreds of `<option>` nodes on every element selection.
+- Assign `canvas.width` / `canvas.height` only when the scene canvas size actually changed, instead of reallocating the multi-megapixel backing store and resetting the 2D context on every repaint.
+- Throttle canvas drags to at most one repaint per animation frame and defer change diffing, draft persistence, and timeline rebuilding to pointer release. A click that only selects a region without moving it now performs no bookkeeping at all.
+- Treat a filesystem that accepts `os.symlink()` without reporting the result as a link as unsupported in the release-manifest test, so the suite passes on Windows drives without reparse-point support.
+
 ## 0.1.5 - 2026-09-20
 
 - Reserve the shared title card area in the visual layout plan: scenes with a card record `layout_plan.title_card_region`, preset native layouts start at y=0.16, and board generation stays out of that area. Custom regions that intrude into the reservation fail Gate 2 with an explicit conflict instead of silently moving approved objects.

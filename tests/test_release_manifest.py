@@ -191,6 +191,12 @@ class ReleaseManifestTests(unittest.TestCase):
             link = root / "scripts" / "linked.py"
             try:
                 os.symlink(target, link)
+                # Some filesystems accept os.symlink() but the created entry is not reported as
+                # a link afterwards (observed on Windows drives without reparse-point support,
+                # where the result is a plain file with no FILE_ATTRIBUTE_REPARSE_POINT). Only
+                # exercise the real detector when the link really is a link.
+                if not os.path.islink(link):
+                    raise NotImplementedError("symlink created but not reported as a link")
                 context = mock.patch.object(
                     release_manifest,
                     "_is_reparse",
